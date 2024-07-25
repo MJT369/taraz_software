@@ -5,7 +5,7 @@
 """
 Name: Taraz_Software.exe
 Version: 1.0.0
-Author: MJT
+Author: Apple
 https://www.apple.com
 Date Created: 2024
 Description: text edit and translator and books search_internet etc .
@@ -13,6 +13,10 @@ Description: text edit and translator and books search_internet etc .
 #بسم الله الرحمن الرحیم#
 import sys
 import os
+import time
+from unicodedata import digit
+from PyQt5.QtCore import QCoreApplication, QEvent
+import pyperclip
 import ttkthemes # type: ignore
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
@@ -55,7 +59,6 @@ gc = LazyImport("gc")
 shutil = LazyImport("shutil")
 farsi_tool = LazyImport("farsi_tools")
 Speller = LazyImport("autocorrect")
-
 requests = LazyImport("requests")
 urllib = LazyImport("urllib.parse")
 hashlib = LazyImport("hashlib")
@@ -68,6 +71,7 @@ def importer():
     try:
         from difflib import SequenceMatcher
         from collections import Counter
+        import re
         from langdetect import detect
     except:
         pass
@@ -75,6 +79,8 @@ def importer():
         import argostranslate.translate
         import argostranslate.package
         from pdf2docx import Converter
+        from docx2pdf import convert 
+        import docx2pdf
         from docx import Document
         from docx.shared import Pt, RGBColor
         from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
@@ -138,33 +144,25 @@ class TranslationWindow:
                 style.theme_use('plastik')
             style.configure('TButton', font=('arial', 11,'bold'))
             book = tk.StringVar(value="کتابخانه")        
-            books = ["قرآن",'نهج البلاغه',"اصول کافي","نهج الفصاحه","حافظ","سه دقیقه در قیامت"]
+            books = ["قرآن",'نهج البلاغه',"اصول کافي","نهج الفصاحه","موعظه","سه دقیقه در قیامت"]
             self.book_box = tk.OptionMenu(root, book, *books)
-           # self.book_box.pack()
             self.book_box.config(font=('Arial', 11,"bold"),bg=self.myColor4,highlightthickness=1)
             self.book_box.bind("<<StringVarSelected>>", self.gift)
             self.var = tk.IntVar()
             self.var2 = tk.IntVar()
-
             book.trace("w", self.gift)
             font_var = tk.StringVar(value='Arial')        
             fonts = ["Arial",'Arial (Arabic)','Simplified Arabic Fixed',
                      'Courier New (Arabic)','Urdu Typesetting','Sakkal Majalla',
                      'Simplified Arabic','Traditional Arabic', ]
             self.font_box = tk.OptionMenu(root, font_var, *fonts)            
-         #   self.font_box.pack()       
             self.font_box.cget("text")
             self.size_var = tk.StringVar(value="16")  # Create a StringVar
             self.size_box = tk.Spinbox(root, from_=0, to=100, textvariable=self.size_var,width=10, relief="sunken", repeatdelay=500, repeatinterval=100,
                      font=("Arial", 12), bg="lightgrey", fg="blue", command=self.update_font)
-            #self.size_box.set(14)
-          #  self.size_box.pack()
-
             self.text_font = ( 'Arial', 19)
             font_var.trace("w", self.update_font)
-
             self.empty_1=False
-
             self.regui()
             self.start1()          
        except :
@@ -179,32 +177,21 @@ class TranslationWindow:
             self.dir= os.getcwd() 
             self.size_box.config(font=('Arial', 11,"bold"),bg=self.myColor4,highlightthickness=1)
             self.font_box.config(font=('Arial', 11,"bold"),bg=self.myColor4,highlightthickness=1)
-            # File Button
             self.file_button = ttk.Button(root, command=self.select_file,)
-            # Translate Button
             self.translate_button = ttk.Button(root, command=self.translate,)
             self.trans_file_button = ttk.Button(root, command=self.trans_file,)
             self.pdf_convert = ttk.Button(root,  command=self.pdf_converter,)
-            # Export Button
             self.export_button = ttk.Button(root,  command=self.export_docx,)
-            # Clear Button
             self.clear_button = ttk.Button(root,  command=self.clear,)
             self.Qt_translator = ttk.Button(root,  command=self.Qt_translator_,)
-        #    self.Qt_translator.pack()
             self.stop_button = ttk.Button(root,command=self.stop,)
-         #   self.stop_button.pack()
-            # Create and place the copy_button
             self.copy_button = ttk.Button(root, command=self.copy_to_clipboard,)
             self.copy_button.pack(pady=10, padx=10)        # paste from
             self.paste_button = ttk.Button(root, command=self.paste_from_clipboard,)
             self.reset_button = ttk.Button(root, command=self.restart_program,)
-           # self.reset_button.pack()
-            # Help Button
             self.help_button = ttk.Button(root, command=self.show_help_message,) 
             self.lang_button = ttk.Button(self.root, text="فارسی", command=self.Lang, compound="center",)
             self.lang2_button = ttk.Button(self.root, text="English", command=self.Lang2, compound="center",)  
-         #   self.lang_button.pack()
-           # self.lang2_button.pack()  
             self.source_language_label = ttk.Label(root)
             self.source_language_label.config(font=('Arial', 10,"bold"))
             self.target_language_label = ttk.Label(root,  text="To language :")
@@ -216,8 +203,7 @@ class TranslationWindow:
                 else:
                     self.lang_fa()  
             self.space = tk.IntVar()
-            self.space_corect = tk.Checkbutton(root, text=self.M11, variable=self.space, command=self.aktive_correct)
-           # self.space_corect.pack()
+            self.space_corect = tk.Checkbutton(root, text=self.M11, variable=self.space, command=self.aktive_space)
             self.text=""  
             self.language_codes_2 = {
                 "en":self.M100, 
@@ -259,7 +245,6 @@ class TranslationWindow:
             self.output_text_label = ttk.Label(root,  text=self.M202)
             self.correction = tk.Checkbutton(root, text=self.M84, variable=self.var, command=self.aktive_correction)
             self.virastar = tk.Checkbutton(root, text=self.M94, variable=self.var2, command=self.aktive_virast)
-          #  self.correction.pack()
             self.translator_var = tk.StringVar()           
             self.translator_var_label = ttk.Label(root,  text=self.M124)           
             self.translator_var_label.config(font=('Arial', 11))
@@ -280,22 +265,15 @@ class TranslationWindow:
             self.them_num = ttk.Combobox(root,state="readonly", textvariable=self.them_num_var,
                                                 values=them)
             self.them_num.bind("<<ComboboxSelected>>", self.them)
-            #self.them_num.pack()
             self.them_num.config(font=('Arial', 13))
-
-
             document_mode = tk.StringVar(value=self.M96)        
             docu = [self.M96,self.M98,self.M99,self.M97, ] 
             self.document_mode_box = tk.OptionMenu(root, document_mode, *docu)
-           # self.document_mode_box.pack() 
             self.document_mode_box.config(font=('Arial', 10,"bold"),bg=self.myColor4,highlightthickness=1)
-
             fot = tk.StringVar(value=self.M12)        
             docfot = [self.M153,self.M12,self.M146,self.M152  ,self.M182,self.M196] 
             self.format_box= tk.OptionMenu(root, fot, *docfot)
-           # self.format_box.pack() 
             self.format_box.config(font=('Arial', 10,"bold"),bg=self.myColor4,highlightthickness=1)
-
             self.source_language_combo = ttk.Combobox(root, state="readonly",values=[self.M102,self.M100, self.M103,self.M110,self.M101,self.M104,
                                                                     self.M109,self.M113,self.M106,self.M107,
                                                                     self.M108,  self.M111,
@@ -308,8 +286,6 @@ class TranslationWindow:
                                                                     self.M108, self.M110, self.M111,
                                                                     self.M112,self.M113,self.M114,self.M115,
                                                                     self.M116,self.M117],cursor="hand2")
-          #  self.source_language_combo.pack()
-           # self.target_language_combo.pack()
             self.target_language_combo.set(self.M102)
             self.target_language_combo.config(font=('Arial', 12,"bold"))
             self.source_language_combo.config(font=('Arial', 12,"bold"))
@@ -333,7 +309,6 @@ class TranslationWindow:
             self.info_console.config(state=tk.DISABLED)
             self.info2_console.config(state=tk.DISABLED)
             self.info3_console.config(state=tk.DISABLED)
-            # Add Scrollbar to Output Console
             input_scrollbar = tk.Scrollbar(self.root, command=self.input_console.yview)
             output_scrollbar = tk.Scrollbar(self.root, command=self.output_console.yview)
             output_scrollbar.place(x=1070, y=110, height=360)
@@ -365,20 +340,14 @@ class TranslationWindow:
         self.target_language_combo.place(x=470, y=10,width=170, height=25)
         self.translator_var_label.place(x=835, y=10,width=77, height=25)
         self.translator_menu.place(x=910, y=10,width=170, height=25)
-
-       # self.show_search.place(x=120, y=555, width=270, height=30)
-        
         #===========================================   
         # Translate Button     
         self.Qt_translator.place(x=790, y=530, width=110, height=50)  
         self.stop_button.place(x=670, y=530, width=110, height=50)
         self.export_button.place(x=910, y=530, width=85, height=50) 
         self.copy_button.place(x=1000, y=530, width=85, height=50)  
-
         self.trans_file_button.place(x=490, y=530, width=170, height=50)
         self.translate_button.place(x=310, y=530, width=170, height=50)
-      #  self.jmt.place(x=120, y=520, width=270, height=36)       
-        # paste Button
         self.paste_button.place(x=10, y=530, width=96, height=50)
         self.file_button.place(x=110, y=530, width=96, height=50)
         # Gift Button 
@@ -393,7 +362,6 @@ class TranslationWindow:
         self.help_button.place(x=1100, y=470, width=160, height=30)
         #color
         self.reset_button.place(x=1100, y=550,width=160, height=30)
-        
         self.internet_aktive=False
         self.book_aktive=False
         self.dict_aktive=False
@@ -513,13 +481,11 @@ class TranslationWindow:
         try:
             dic_labels= [self.M125, self.M154,self.M181, self.M159, self.M160, self.M166,self.M207,
                                 self.M167, self.M168, self.M169, self.M173,self.M188,self.M213]
-
             ketab_labels = [self.M172,self.M194,
-                    self.M170,
-                    self.M208, self.M209, self.M210, self.M211,
-                    self.M174, self.M175, self.M179,self.M244,
-                    self.M185, self.M186, self.M187,self.M183,
-                    self.M190, self.M192,self.M193,self.M213
+                    self.M170,self.M208,self.M211, self.M174, self.M175, 
+                    self.M179,self.M244,self.M183,self.M209, self.M210,
+                    self.M186, self.M187,self.M265,self.M266,self.M264,
+                    self.M190, self.M192,self.M193,self.M262 , self.M263,self.M213,
                     ]
             int_labels= [self.M163, self.M164,self.M238,self.M73,self.M213]
             sina_labels= [self.M216,self.M217,self.M218,self.M219,self.M220,self.M221,
@@ -529,47 +495,40 @@ class TranslationWindow:
                             self.M231,self.M232,self.M233,self.M234,self.M235,
                             self.M213
                     ]           
-            teb_labels = [self.M185, self.M199,self.M242 ,self.M213 ]
+            teb_labels = [self.M185, self.M199,self.M242 ,self.M267,self.M213 ]
 
             self.dict= ttk.Combobox(root, state="readonly",values=dic_labels,cursor="hand2")
             self.dict.set(self.M177)           
-        #    self.dict.pack()
             self.dict.config(font=('Arial', 11))
             self.dict.bind("<<ComboboxSelected>>", self.on_ketab_1)
 
             self.sher= ttk.Combobox(root, state="readonly",values=sher_labels,cursor="hand2")
             self.sher.set(self.M227)           
-        #    self.sher.pack()
             self.sher.config(font=('Arial', 11))
             self.sher.bind("<<ComboboxSelected>>", self.on_ketab_6)
 
             self.books= ttk.Combobox(root, state="readonly",values=ketab_labels,cursor="hand2")
             self.books.set(self.M176)           
-       #     self.books.pack()
             self.books.config(font=('Arial', 11))
             self.books.bind("<<ComboboxSelected>>", self.on_ketab_2)
 
             self.internet= ttk.Combobox(root, state="readonly",values=int_labels,cursor="hand2")
             self.internet.set(self.M165)           
-          #  self.internet.pack()
             self.internet.config(font=('Arial', 11))
             self.internet.bind("<<ComboboxSelected>>", self.on_ketab_3)
 
             self.sina= ttk.Combobox(root, state="readonly",values=sina_labels,cursor="hand2")
             self.sina.set(self.M203)           
-       #     self.sina.pack()
             self.sina.config(font=('Arial', 11))
             self.sina.bind("<<ComboboxSelected>>", self.on_ketab_4)
 
             self.teb= ttk.Combobox(root, state="readonly",values=teb_labels,cursor="hand2")
             self.teb.set(self.M241)           
-           # self.teb.pack()
             self.teb.config(font=('Arial', 11))
             self.teb.bind("<<ComboboxSelected>>", self.on_ketab_7)
 
             self.correct= ttk.Combobox(root, state="readonly",values=[self.M128,self.M15,self.M213,],cursor="hand2")
             self.correct.set(self.M84)   
-           # self.correct.pack()
             self.correct.config(font=('Arial', 11))
             self.correct.bind("<<ComboboxSelected>>", self.on_ketab_5)
 
@@ -580,12 +539,7 @@ class TranslationWindow:
             self.sher.place(x=1100, y=160,width=160, height=25)
             self.internet.place(x=1100, y=190,width=160, height=25)
             self.teb.place(x=1100, y=220,width=160, height=25)
-            
-            
-           # self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
-            
-            #self.info2(self.correct.get())
-            
+            self.stopBook=False   
         except:
             pass
     def off_ketab(self):
@@ -596,20 +550,15 @@ class TranslationWindow:
         self.internet_aktive=False
         self.book_aktive=False
         self.dict_aktive=False
-        
         self.internet.set(self.M165) 
         self.dict.set(self.M177) 
         self.sher.set(self.M227) 
         self.sina.set(self.M203) 
         self.books.set(self.M176)
         self.teb.set(self.M241) 
-       # self.coorrect_aktive=False
         self.info2('') 
         return
     def on_ketab_1(self,event):
-        QApplication.exit()
-        self.info2('') 
-        self.on_button_clicked_2()
         self.internet.set(self.M165) 
         self.sina.set(self.M203) 
         self.books.set(self.M176) 
@@ -627,6 +576,7 @@ class TranslationWindow:
                 try: 
                     if  self.thread_active==False:
                         self.separate_search=True
+                        self.ketab_=""
                         src_book_dic=self.searching_book_options()
                         if self.spm==True or src_book_dic==True :
                             self.run_book_search()
@@ -639,9 +589,6 @@ class TranslationWindow:
         else:
             self.off_ketab()
     def on_ketab_2(self,event):
-        QApplication.exit()
-        self.info2('') 
-        self.on_button_clicked_2()
         self.internet.set(self.M165) 
         self.dict.set(self.M177) 
         self.sina.set(self.M203) 
@@ -658,6 +605,7 @@ class TranslationWindow:
             try:
                 if  self.thread_active==False:
                     self.separate_search=True
+                    self.ketab_=""
                     src_book_dic=self.searching_book_options()
                     if self.spm==True or src_book_dic==True :  
                         self.run_book_search()
@@ -666,9 +614,7 @@ class TranslationWindow:
         else:
             self.off_ketab()     
     def on_ketab_3(self,event):
-        QApplication.exit()
-        self.info2('') 
-        self.on_button_clicked_2()
+
         self.dict.set(self.M177) 
         self.sina.set(self.M203) 
         self.books.set(self.M176)
@@ -699,6 +645,7 @@ class TranslationWindow:
             try:
                 if  self.thread_active==False:
                     self.separate_search=True
+                    self.ketab_=""
                     self.search_process=self.internet.get()
                     self.run_book_search()
             except:
@@ -706,9 +653,6 @@ class TranslationWindow:
         else:
             self.off_ketab()
     def on_ketab_4(self,event):
-        QApplication.exit()
-        self.info2('') 
-        self.on_button_clicked_2()
         self.internet.set(self.M165) 
         self.dict.set(self.M177) 
         self.books.set(self.M176)
@@ -725,6 +669,7 @@ class TranslationWindow:
             try:
                 if  self.thread_active==False:
                     self.separate_search=True
+                    self.ketab_=""
                     src_book_dic=self.searching_book_options()
                     if self.spm==True or src_book_dic==True :   
                         self.run_book_search()
@@ -749,7 +694,6 @@ class TranslationWindow:
             self.virast.set(0)
             self.info2(" ")
     def aktive_correction(self):
-
         if self.var.get()==1:
             self.coorrect_aktive=True
             self.search_Active=True
@@ -759,15 +703,12 @@ class TranslationWindow:
             self.correct.set(self.M133)
             self.info2(" ")
             self.coorrect_aktive=False
-    def aktive_correct(self):
+    def aktive_space(self):
         if self.space.get()==1:
             self.space_word__disabled.set(1)
         else:
             self.space_word__disabled.set(0)
     def on_ketab_6(self,event):
-        QApplication.exit()
-        self.info2('') 
-        self.on_button_clicked_2()
         self.internet.set(self.M165) 
         self.dict.set(self.M177) 
         self.sina.set(self.M203) 
@@ -784,6 +725,7 @@ class TranslationWindow:
             try:
                 if  self.thread_active==False:
                     self.separate_search=True
+                    self.ketab_=""
                     src_book_dic=self.searching_book_options()
                     if self.spm==True or src_book_dic==True :   
                         self.run_book_search()
@@ -792,9 +734,6 @@ class TranslationWindow:
         else:
             self.off_ketab()
     def on_ketab_7(self,event):
-        QApplication.exit()
-        self.info2('') 
-        self.on_button_clicked_2()
         self.internet.set(self.M165) 
         self.dict.set(self.M177) 
         self.sina.set(self.M203) 
@@ -811,6 +750,7 @@ class TranslationWindow:
             try:
                 if  self.thread_active==False:
                     self.separate_search=True
+                    self.ketab_=""
                     src_book_dic=self.searching_book_options()
                     if self.spm==True or src_book_dic==True : 
                         self.run_book_search()
@@ -819,9 +759,18 @@ class TranslationWindow:
         else:
             self.off_ketab()
     def run_book_search(self):
-        self.i=0
+        try: 
+            self.stopBook=False
+            QApplication.exit()
+        except:
+            pass
+        try:
+            self.cunter=0
+            self.info2('') 
+        except:
+            pass
+        time.sleep(0.66)
         threading.Thread(target=self.book_search, args=("", "", "")).start()
-
     def start(self):
         self.dir_path = os.path.join(os.path.expanduser('~'), '.local', 'cache', 'argos-translate', 'downloads')
         self.base_path = os.path.join(os.path.expanduser('~'), '.local', 'share', 'argos-translate', 'packages')
@@ -829,7 +778,7 @@ class TranslationWindow:
         self.source_path = os.path.join(self.dir, 'index.json')
         self.file_name = os.path.basename(self.source_path)
         self.destination_file_path = os.path.join(self.destination_path, self.file_name)
-        self.special_chars = ['$', '#', '%', '&', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';','«','»' ,
+        self.special_chars = ['$', '#', '%', '&', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';','«','»' ,'؟','!',
                               '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}','،']
         self.url_downloads='url_downloads.json'
         self.sin = ['~','!','@','#','$','%','^','&','*','(',')','_','-','=','.','/','','+','<',
@@ -1011,6 +960,12 @@ class TranslationWindow:
         self.S63=False
         self.S64=False
         self.S65=False
+        self.S66=False
+        self.S67=False
+        self.S68=False
+        self.S69=False
+        self.S70=False
+        self.S71=False
         self.stops=False
         self.thread_active=False
         self.skip_rtl=False
@@ -1075,17 +1030,33 @@ class TranslationWindow:
                 if not os.path.exists('not_found_en.json'):
                    with open('not_found_en.json', 'w') as f:
                         f.write('')
-    def create_context_menu(self,widget):
+    def create_context_menu(self, widget):
         try:
             menu = tk.Menu(widget, tearoff=0)
-            menu.add_command(label='Copy', command=lambda: (root.clipboard_clear(), root.clipboard_append(widget.selection_get())))
-            menu.add_command(label='Cut', command=lambda: (root.clipboard_clear(), root.clipboard_append(widget.selection_get()), widget.delete('sel.first', 'sel.last')))
-            menu.add_command(label='Paste', command=lambda: widget.insert(tk.INSERT, root.clipboard_get()))
+            def copy_text():
+                try:
+                    selected_text = widget.get(tk.SEL_FIRST, tk.SEL_LAST)
+                    pyperclip.copy(selected_text)
+                except tk.TclError:
+                    pass
+            def cut_text():
+                try:
+                    selected_text = widget.get(tk.SEL_FIRST, tk.SEL_LAST)
+                    pyperclip.copy(selected_text)
+                    widget.delete(tk.SEL_FIRST, tk.SEL_LAST)
+                except tk.TclError:
+                    pass
+            def paste_text():
+                clipboard_text = pyperclip.paste()
+                widget.insert(tk.INSERT, clipboard_text)
+            menu.add_command(label='Copy', command=copy_text)
+            menu.add_command(label='Cut', command=cut_text)
+            menu.add_command(label='Paste', command=paste_text)
             def show_menu(event):
                 menu.post(event.x_root, event.y_root)
-            widget.bind('<Button-3>',show_menu)
-        except:
-            self.update_notification("copy or cut selecting text error run program as admin")
+            widget.bind('<Button-3>', show_menu)
+        except Exception as e:
+            self.update_notification(f"Error setting up context menu: {e}")
     def create_console(self, bg_color, fg_color, x, y, width, height):
         console = tk.Text(self.root,width=1,tabstyle='wordprocessor',autoseparators=False,exportselection=False,undo=True,startline='', cursor = "xterm",wrap='word', font=self.text_font)
         console.config(bg = "light gray", fg=fg_color)
@@ -1105,35 +1076,19 @@ class TranslationWindow:
         self.output_console.see(tk.END)
         self.output_console.config(state='disabled')
     def show(self):
-        # Remove any previous 'found' tags
         self.input_console.tag_remove('found', '1.0', tk.END)
-        
-        # Get the search query from the user
         search_query = askstring("Find", "Enter your text")
-        
         if search_query:
             idx = '1.0'
             while True:
-                # Search for the next occurrence of the query
                 idx = self.input_console.search(search_query, idx, nocase=True, stopindex=tk.END)
                 if not idx:
                     break
-                
-                # Calculate the end index of the found word
                 last_idx = f"{idx}+{len(search_query)}c"
-                
-                # Add the 'found' tag to highlight the word
                 self.input_console.tag_add('found', idx, last_idx)
-                
-                # Scroll to the found word
                 self.input_console.see(last_idx)
-                
-                # Update the index for the next search iteration
                 idx = last_idx
-        
-        # Configure the 'found' tag color
         self.input_console.tag_configure('found', foreground='blue')
-
     def Lang(self):
         with open('index_lang.json', 'r', encoding='utf-8') as f:
             lang = f.read()
@@ -1145,7 +1100,6 @@ class TranslationWindow:
                         self.restart_program()
             else:
                 self.update_notification('  زبان برنامه فارسی است      ' )
-
     def lang_fa(self):           
         self.source_language_label.configure(text='زبان مبدا')
         self.target_language_label.configure(text='زبان مقصد')
@@ -1408,14 +1362,20 @@ class TranslationWindow:
         self.M251="پردازش  پی دی اف برای زبانهای عربی فارسی و اردو درست انجام نمی شود و ممکن است متن درست استخراج نشود آیا ادامه می دهید ؟"   
         self.M252="بارگذاری کامل شد"
         self.M253="بازنشانی نرم افزار" 
-        self.M254="لطفا برنامه را در حالت Administrator  اجرا فرمایید"
+        self.M254="اجرا فرمایید Administrator لطفا برای اجرای این قابلیت برنامه را در حالت "
         self.M255="جستجو در متن ورودی" 
         self.M256="در حال استخراج جدول از پی دی اف"
-        self.M257 ="جایگزین"
+        self.M257 ="جایگزین شد با "
         self.M258 ="اجرای تغییرات"
         self.M259="علی"
         self.M260="بایدو"
         self.M261="شیاومی"
+        self.M262="الغدیر"
+        self.M263="توضیح المسایل سیستانی"
+        self.M264="گوهر خود را هویدا کن"
+        self.M265="موعظه آیت الله ضیاء آبادی"
+        self.M266="حج برنامه تکامل" 
+        self.M267="کتاب آشپزی" 
     def Lang2(self):
         with open('index_lang.json', 'r') as f:
                 lang = f.read()
@@ -1424,7 +1384,6 @@ class TranslationWindow:
                 if result == 'yes':
                     with open('index_lang.json', 'w', encoding="utf-8") as f:
                             f.write('en')  
-                    # self.start1()
                     self.restart_program()    
                 else:
                     self.update_notification("Program language already English")
@@ -1584,7 +1543,7 @@ class TranslationWindow:
         self.M139="Write Text"
         self.M140= "The Source and Target Language are the Same No Translations (Text Correction Mode)"
         self.M141="Microsoft Office Not Installed for docx2.convert Word Office to PDF File"
-        self.M142='َُSkip Auto Save Replaced  Words'
+        self.M142='Skip Auto Save Replaced  Words'
         self.M143='QT_Taraz_313 Not Started'
         self.M144='Really Cancel Save docx2.convert and Translated File ?'
         self.M145='Saving File'
@@ -1630,8 +1589,8 @@ class TranslationWindow:
         self.M189="Shahname_Ferdosi"
         self.M190="Osul_KAfi"
         self.M191="saadi"
-        self.M192="َAL_Qatrah"
-        self.M193="َAL_Qatrah_farsi"
+        self.M192="AL_Qatrah"
+        self.M193="AL_Qatrah_farsi"
         self.M194="Quran with erab"
         self.M195="SEARCH WINDOW"
         self.M196="Reverse_Text"
@@ -1691,14 +1650,20 @@ class TranslationWindow:
         self.M251="PDF Process for Source Language Not Supported. It Can Be Incorrect Extracting Text. Would You Like Continue?"
         self.M252="Loading complete"
         self.M253="Restarting" 
-        self.M254="please run program in Administrator "
+        self.M254="Please run the program in administrator mode to support this feature"
         self.M255="search in input text" 
         self.M256="Table extract enabled from edit menue Extracting and translation table from PDF will start"
-        self.M257="Replace"
+        self.M257="Replace with"
         self.M258="Make changes "
         self.M259="alibaba"
         self.M260="baidu"
         self.M261="Xiaomi"
+        self.M262="algadir"
+        self.M263="tozih_almasael"
+        self.M264="Gohare khod ra yad kon"
+        self.M265="Moezeh "
+        self.M266="Haj barnamrh e takamol"
+        self.M267="Cooking book"
     def choose_color(self):
         self.color_code = colorchooser.askcolor(title ="Choose color")
         self.input_console.config(fg=self.color_code[1])
@@ -1760,22 +1725,21 @@ class TranslationWindow:
     def cut_text(self):
         try:
             selected_text = self.input_console.get(1.0, tk.END)        
-            self.root.clipboard_clear()
-            self.root.clipboard_append(selected_text)
+            
+            pyperclip.copy(selected_text)
             self.input_console.delete(1.0,tk.INSERT)
         except Exception as e:
             pass
     def copy_text(self):
         try:
             selected_text = self.input_console.get(1.0, tk.END)
-            self.root.clipboard_clear()
-            self.root.clipboard_append(selected_text)
+            pyperclip.copy(selected_text)
         except:
             pass
     def paste_text(self):
         if self.thread_active==False:
             try:
-                clipboard_text = self.root.clipboard_get()
+                clipboard_text =  pyperclip.paste()
                 self.input_console.insert(tk.INSERT, clipboard_text)
             except :
                 pass
@@ -1809,9 +1773,7 @@ class TranslationWindow:
     def copy_to_clipboard(self):
         try:
             clipboard_text = self.output_console.get(1.0, tk.END)
-            self.root.clipboard_clear()
-            self.root.clipboard_append(clipboard_text)
-            self.root.update()
+            pyperclip.copy(clipboard_text)
             self.update_notification(" متن کپی شد")
         except :
             self.update_notification("کپی نشد")
@@ -1819,9 +1781,8 @@ class TranslationWindow:
         try:
             if self.thread_active==False:
                 self.input_console.delete(1.0, tk.END)
-                clipboard_text = self.root.clipboard_get()
+                clipboard_text =  pyperclip.paste()
                 self.input_console.insert(tk.INSERT, clipboard_text)
-                self.root.update()
             else:self.update_notification(self.M24)
         except :
             self.update_notification(f"  هیچ متنی کپی نشده")   
@@ -1898,7 +1859,6 @@ class TranslationWindow:
     def process_pdf_file(self):
         self.stops=False 
         try:
-           
             if self.document_mode_box.cget('text') in [self.M96, self.M97]  or self.pdf_convert==True:
                self.process_pdf2()
             elif self.document_mode_box.cget('text') ==self.M98:
@@ -1907,11 +1867,9 @@ class TranslationWindow:
             else:
                 self.skip_rtl = True
                 self.process_pdf()
-            
             self.update_notification(self.M42) 
         except Exception as e:
             self.skip_rtl = False
-          
             self.update_notification(f"  {self.M44}   : {str(e)}")
     def process_docx_file(self):
         self.thread_active = True
@@ -1920,16 +1878,13 @@ class TranslationWindow:
            self.rev=True
         else:
            self.process_docx()
-        
         self.update_notification(self.M42) 
     def process_xlsx_file(self):
-             
         self.thread_active = True
         if self.document_mode_box.cget('text') in [self.M96, self.M97]:
            self.process_xlsx2()
         else:
            self.process_xlsx()
-        
         self.update_notification(self.M42) 
     def pdf_converter(self):
         try:
@@ -2011,7 +1966,6 @@ class TranslationWindow:
                         if para.text1 not in translated_texts:         
                             translated_texts[para.text1]=self.translate_text(para.text1)                   
                         translated_text = translated_texts[para.text1]
-                        # Flag to check if translation has been applied
                         translation_applied = False                                                 
                         for run in para.runs:
                             if self.stops==True:
@@ -2044,9 +1998,7 @@ class TranslationWindow:
                     return 
                 self.update_notification(self.M145)                      
                 translated_docx_file = os.path.splitext(docx_file2)[0] + '.docx'
-                #translated_pdf_file = os.path.splitext(docx_file2)[0] + '.pdf'
                 doc.save(translated_docx_file) 
-                #docx2.convert(translated_docx_file,translated_pdf_file)
                 file_name_2 = os.path.basename(translated_docx_file)    
                 confirmation = messagebox.askyesno(self.M86,f"{self.M42} {self.M85}  {file_name_2}")
                 os.remove(docx_file)                 
@@ -2058,7 +2010,6 @@ class TranslationWindow:
                 self.process_finish()                                                 
                 messagebox.showinfo(self.M35,f"{self.M44} : {str(e)}")
                 self.update_notification( f"{self.M35} : {str(e)}")                                      
-
     def PDF_Text_RTL(self):
         from pypdf import PdfReader
         self.tranc_err=False
@@ -2076,7 +2027,6 @@ class TranslationWindow:
                 para = doc.add_paragraph()
                 if self.target in [self.M102,self.M109]:
                     para.alignment = dox.enum.text.WD_PARAGRAPH_ALIGNMENT.RIGHT
-                #translated_text="\n".join(translated_text)
                 para.add_run(translated_text)  # Add translated text to the paragraph
             docx_file2 = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word Document", "*.docx")])           
             if not docx_file2:
@@ -2084,9 +2034,7 @@ class TranslationWindow:
                 self.update_notification(self.M32)
                 return
             translated_docx_file = os.path.splitext(docx_file2)[0] + '.docx'
-           # translated_pdf_file = os.path.splitext(docx_file2)[0] + '_ta.pdf'
             doc.save(translated_docx_file)  
-            #docx2.convert(translated_docx_file,translated_pdf_file)
             self.process_finish()           
             confirmation = messagebox.askyesno(self.M86,f"{self.M85} {translated_docx_file}")                
             if confirmation:
@@ -2103,7 +2051,6 @@ class TranslationWindow:
                 if self.stops==True:                    
                     break 
                 para.text2=self.space_correction(para.text)      
-              #  para.text3=self.format_text_2(para.text2)
                 self.update_input( para.text2 + '\n')
                 if self.document_mode_box.cget('text') ==self.M98:
                     self.translate_text(para.text2)
@@ -2134,7 +2081,6 @@ class TranslationWindow:
                                 para_properties = para._element.get_or_add_pPr()
                                 para.alignment = 0                            
                                 para_properties.rtl = False 
-                                        
                         elif not self.from_code in ["fa", "ar","ur"] and  self.to_code in ["fa", "ar","ur"]:
                                 para_properties = para._element.get_or_add_pPr()
                                 para.alignment = 2                             
@@ -2145,7 +2091,6 @@ class TranslationWindow:
                         if para.text not in translated_texts:                            
                             translated_texts[para.text1] = self.translate_text(para.text1)                            
                         translated_text = translated_texts[para.text1]
-                        # Flag to check if translation has been applied
                         translation_applied = False                                                 
                         for run in para.runs:
                             if self.stops==True:
@@ -2188,55 +2133,52 @@ class TranslationWindow:
                 messagebox.showinfo(self.M43,f"{self.M44} : {str(e)}")
                 self.update_notification(f"  {self.M43} : {str(e)}")
     def process_xlsx2(self):
-        from openpyxl import load_workbook
-        from openpyxl import Workbook
         self.excel=True
+        import pandas as pd       
         try:
             file_info = (f"{self.M91}  {os.path.basename(self.file_path)}")
-            self.update_notification(file_info)
-            wb = load_workbook(filename=self.file_path)
-            translated_file = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Document", "*.xlsx")])
+            self.update_notification(file_info)           
+            xls = pd.read_excel(self.file_path, sheet_name=None)
+            translated_file =filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Document", "*.xlsx")])
             if not translated_file:
-                self.process_finish()
+                self.process_finish()                                      
                 self.update_notification(self.M32)
                 return
-            new_wb = Workbook()
-            for sheet in wb.sheetnames:
-                ws = wb[sheet]
-                new_ws = new_wb.create_sheet(title=sheet)
-                if self.stops==True:
-                    break
-                for row in ws.iter_rows(values_only=True):
-                    translated_row = []
+            with pd.ExcelWriter(translated_file) as writer:
+                for sheet_name, df in xls.items():
+                    translated_data = []
                     if self.stops==True:
-                        break
-                    for cell in row:
-                        try:
-                            if self.stops==True:
-                                break
-                            if cell is None or len(str(cell)) < 1:
-                                break
-                            cell = self.space_correction(str(cell))
-                            self.thread_active = True 
-                            self.update_input(cell+'\n')
-                            translated_text = self.translate_text(cell)
-                            if not isinstance(cell, float):
-                                if isinstance(cell, int):
-                                    cell = str(cell)
-                        except Exception as e:
-                            self.update_notification( f"{self.M44} : {str(e)}")
-                            translated_text = cell
-                        translated_row.append(translated_text)
-                    new_ws.append(translated_row)
-                if self.stops==True:
-                    break
-            messagebox.showinfo({self.M42}, {self.M33})
-            self.process_finish()
-            new_wb.save(translated_file)
+                        break 
+                    for row in df.values:
+                        translated_row = []   
+                        if self.stops==True:
+                            break                             
+                        for cell in row:
+                            try:
+                                if self.stops==True:
+                                    break 
+                                if  len(str(cell)) < 1:
+                                    break 
+                                cell=self.space_correction(str(cell))
+                                self.thread_active = True   
+                                self.stops=False                       
+                                self.update_input(cell+'\n')                    
+                                translated_text =self.translate_text(cell)
+                                if not isinstance(cell, float)  :
+                                    if isinstance(cell, int):
+                                        cell = str(cell)                        
+                            except Exception as e:
+                                self.update_notification( f"{self.M44} : {str(e)}")
+                                translated_text = cell
+                            translated_row.append(translated_text)
+                        translated_data.append(translated_row)                                
+                    translated_df = pd.DataFrame(translated_data)
+                    translated_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                messagebox.showinfo({self.M42}, {self.M33})
+                self.process_finish()                                                  
             os.startfile(translated_file)
             return
-        except Exception as e:
-            self.process_finish()
+        except Exception as e:   
             messagebox.showinfo(self.M23,f"{self.M44} : {str(e)}")
             self.update_notification( f"{self.M23} : {str(e)}")
 
@@ -2399,8 +2341,8 @@ class TranslationWindow:
                file_path_2=os.path.join(self.dir, '11070-fa-nahjulbalaghe ba tarjeme farsi ravan.pdf')
                os.startfile(file_path_2)
                return
-            if selected_book =='حافظ' :   
-               file_path_2=os.path.join(self.dir, '16294-fa-shogh-mahdi.pdf')
+            if selected_book =='موعظه' :   
+               file_path_2=os.path.join(self.dir, 'moezeh.pdf')
                os.startfile(file_path_2)
                return
             if selected_book =='سه دقیقه در قیامت' :   
@@ -2421,8 +2363,7 @@ class TranslationWindow:
         self.ketab_ = book_var
         return True
     def searching_book_options(self):
-        try:
-            
+        try:            
             book_options = {
                 self.M170: ("Quran_fa.json", "Quran_fa", "S12"),
                 self.M171: ("Hafez.json", "Hafez", "S13"),
@@ -2448,8 +2389,8 @@ class TranslationWindow:
                 self.M189: ("Shahname.json", "Shahname", "S27"),
                 self.M190: ("Osul_KAfi.json", "Osul_KAfi", "S28"),
                 self.M191: ("saadi.json", "saadi", "S29"),
-                self.M192: ("qatreh.json", "َAL_Qatrah", "S30"),
-                self.M193: ("qatreh_tar.json", "َAL_Qatrah_farsi", "S31"),
+                self.M192: ("qatreh.json", "AL_Qatrah", "S30"),
+                self.M193: ("qatreh_tar.json", "AL_Qatrah_farsi", "S31"),
                 self.M199: ("Qanoun_Teb.json", "P_M_P", "S32"),
                 self.M200: ("amoozesh.json", "M_E", "S33"),
                 self.M202: ("sakht_daroo.json", "M_M_P", "S34"),
@@ -2458,8 +2399,8 @@ class TranslationWindow:
                 self.M194: ("Quran_erab.json", "Quran_erab","S37"),
                 self.M208: ("almizan.json", "almizan_","S40"),
                 self.M209: ("mofradat.json", "mofradat_","S41"),
-                self.M210: ("almizan_tr.json", "almizan_tr_","S42"),
-                self.M211: ("mofradat_tr.json", "mofradat_tr_","S43"),
+                self.M211: ("almizan_tr.json", "almizan_tr_","S42"),
+                self.M210: ("mofradat_tr.json", "mofradat_tr_","S43"),
                 self.M216: ("smd.json", "smd","S44"),
                 self.M217: ("din1.json", "din1","S45"),
                 self.M218: ("din2.json", "din2","S46"),
@@ -2482,6 +2423,12 @@ class TranslationWindow:
                 self.M242: ("tebreza.json", "reza","S63"),
                 self.M243: ("resaleh.json", "khamenei","S64"),
                 self.M244: ("ouonoreza.json", "Oyoun","S65"),
+                self.M262: ("algadir.json", "algadir","S66"),
+                self.M263: ("tozih_almasael.json", "tozih_almasael","S67"),
+                self.M264: ("gohar_zai.json", "gohar_zai","S68"),
+                self.M265: ("moeze_zia.json", "moeze_zia","S69"),
+                self.M266: ("haj_zia.json", "tozih_almasael","S70"),
+                self.M267: ("ashpazi.json", "ashpazi","S71"),
                 }              
             if not self.books.get()==self.M176:
                 variant =self.books.get()  
@@ -2495,7 +2442,7 @@ class TranslationWindow:
                 variant=self.teb.get()
             else :return False
             for book, (book_name, book_attr, Sattr) in book_options.items():
-                if self.stops==True:                   
+                if self.stops==True :                   
                     break 
                 if book == variant:
                     self.ktb=variant
@@ -2526,8 +2473,8 @@ class TranslationWindow:
                         self.ketab_ = set(getattr(self, book_attr))
                         return True
                     split0001=[self.M184,self.M185,self.M186,self.M187
-                               ,self.M190,self.M192,
-                               self.M199,self.M242,self.M243,self.M244,
+                               ,self.M190,self.M192,self.M262 , self.M263,self.M265,self.M266,self.M264,
+                               self.M199,self.M242,self.M243,self.M244,self.M267,
                                 self.M174,self.M175,self.M193,self.M205,self.M200,self.M202,self.M204]
                     with open(self.path_book, 'r', encoding="utf-8") as f:
                         if  variant in split0001 :
@@ -2572,9 +2519,9 @@ class TranslationWindow:
             if self.book_aktive==True:
                 src_book_dic=self.searching_book_options()
                 if  self.spm==True or src_book_dic==True :  
-                    self.text=self.ketab(self.text) 
+                    self.text=self.search(self.text) 
             elif self.internet_aktive==True:
-                self.text=self.ketab(self.text) 
+                self.text=self.search(self.text) 
             elif self.dict_aktive==True:
                 if self.dict.get()==self.M125: 
                     if self.from_code in ['fa']:
@@ -2582,11 +2529,11 @@ class TranslationWindow:
                     else:
                         messagebox.showinfo(self.M44,self.M157)
                 elif self.dict.get()==self.M207:
-                     self.text=self.ketab(self.text) 
+                     self.text=self.search(self.text) 
                 else:
                     src_book_dic=self.searching_book_options()
                     if self.spm==True or src_book_dic==True :   
-                        self.text=self.ketab(self.text) 
+                        self.text=self.search(self.text) 
             return self.text
         except:
             self.info('text_process error')
@@ -2905,7 +2852,7 @@ class TranslationWindow:
                             self.trans=Translator
                             self.translate_pay=True
                         try:
-                            translated_par=self.trans().translate(paragraph, source_language='auto',destination_language=self.target_language_code).result
+                            translated_par=self.trans().translate(paragraph, source_language='auto',destination_language=self.to_code).result
                         except:
                             translated_par=paragraph
                     break
@@ -3488,6 +3435,7 @@ class TranslationWindow:
         except :
             return None
     def find_base_word(self, word):
+        print(4)
         try:
             self.save_word=False
             if  len(word)>5:
@@ -3557,23 +3505,29 @@ class TranslationWindow:
         except:
             return None
     def saveNewWord(self,newword):
+        try:
             if self.S6==False:
                 self.open_4()
             with open(self.not_found_file, 'a', encoding="utf-8") as f:
                     f.write(newword + '\n') 
             with open(self.not_found_file, 'r', encoding="utf-8") as f:
                     self.fa_w_not_found=f.read().splitlines() 
+        except:
+            self.update_input(self.M254)
     def saveReplacedWords(self,word,replacedWord):
-        if self.S6==False:
-            self.open_4()
-        self.replace='replace.json'
-        #self.info2(f"{word+'   '+'جایگزین شد با '+'   '}{replacedWord}")
-        with open(self.replace, 'a' , encoding="utf-8") as f:
-            f.write(replacedWord+"  "+word + '\n')
-        with open(self.replace, 'r', encoding='utf-8') as f:
-            self.replaced_lines =f.read().splitlines()
-        with open(self.replace, 'r', encoding='utf-8') as f:
-            self.replaced_words=f.read().split()
+        try:
+            if self.S6==False:
+                self.open_4()
+            self.replace='replace.json'
+            self.info2(f"{word+'   '+'جایگزین شد با '+'   '}{replacedWord}")
+            with open(self.replace, 'a' , encoding="utf-8") as f:
+                f.write(replacedWord+"  "+word + '\n')
+            with open(self.replace, 'r', encoding='utf-8') as f:
+                self.replaced_lines =f.read().splitlines()
+            with open(self.replace, 'r', encoding='utf-8') as f:
+                self.replaced_words=f.read().split()
+        except:
+            self.update_input(self.M254)
     def find_similar_word(self, word):
         self.save_word=False
         try:
@@ -3589,22 +3543,7 @@ class TranslationWindow:
                 similar_words_same_length = [w[0] for w in similar_words if  (len(word)-1>=len(w[0]) and len(word)+3<=len(w[0]))  or  (len(word)+1<=len(w[0]) and len(word)-2>=len(w[0])) ]
                 if similar_words_same_length:
                     return similar_words_same_length[0] 
-            if  7>len(word) > 3:
-                for suffix in self.start_with:            
-                    if word.startswith(suffix):
-                        new_word = word[:-len(suffix)]
-                        if new_word in self.words2 or new_word in self.fa_w_not_found or new_word in self.fa_words: 
-                            self.save_word=True   
-                            return word
-                        else:
-                            for suffix in self.suffixes:              
-                                if new_word.endswith(suffix):
-                                    new_word = new_word[:-len(suffix)]
-                                    if new_word in self.fa_w_not_found or new_word in self.fa_words: 
-                                        if  new_word in self.words2 and len(suffix)>2:
-                                            return new_word+' '+suffix+' '
-                                        self.save_word=True
-                                        return word
+            if  7>len(word) > 4:
                 for suffix in self.suffixes:              
                     if word.endswith(suffix):
                         new_word = word[:-len(suffix)]
@@ -3612,15 +3551,8 @@ class TranslationWindow:
                             if  new_word in self.words2 and len(suffix)>2:
                                 return new_word+' '+suffix+' '
                             self.save_word=True
-                            return word
-                        else:
-                            for suffix in self.start_with:            
-                                if new_word.startswith(suffix):
-                                    new_word = new_word[:-len(suffix)]
-                                    if new_word in self.fa_w_not_found or new_word in self.fa_words:  
-                                        self.save_word=True  
-                                        return word                   
-                for suffix in self.start_with:            
+                            return word                 
+                for suffix in self.start_with:   
                     if word.startswith(suffix):
                         new_word = word[:-len(suffix)]
                         if new_word in self.fa_w_not_found or new_word in self.fa_words:  
@@ -3639,27 +3571,9 @@ class TranslationWindow:
                             new_word = replace_and_check(i, char)
                             if new_word is not None:
                                 return new_word
-
             return None
         except :
             return None
-    def saveNewWord(self,newword):
-        with open(self.not_found_file, 'a', encoding="utf-8") as f:
-                f.write(newword + '\n') 
-        with open(self.not_found_file, 'r', encoding="utf-8") as f:
-                self.fa_w_not_found=f.read().splitlines() 
-    def saveReplacedWords(self,word,replacedWord):
-        self.replace='replace.json'
-        self.info2(f"{word+'   '+'جایگزین شد با '+'   '}{replacedWord}")
-        with open(self.replace, 'a' , encoding="utf-8") as f:
-            f.write(replacedWord+" "+word + '\n')
-        with open(self.replace, 'r', encoding='utf-8') as f:
-            self.replaced_lines =f.read().splitlines()
-        with open(self.replace, 'r', encoding='utf-8') as f:
-            self.replaced_words=f.read().split()
-        if not replacedWord in self.fa_w_not_found:
-            self.saveNewWord(replacedWord)
-
     def check_single_char(self, words, i):
         try:
             if i > 0 and (words[i-1] + words[i]) in self.fa_words:
@@ -3710,11 +3624,13 @@ class TranslationWindow:
             words[i] = words[i]
         return ' '.join(words) 
     def space_correction(self,text):
+        if  self.space_word__disabled.get():
+            return text
         try:
             text=self.fix_space_word(text)
             if not self.to_code in ['fa','ur','ar']:
                  text = ftfy.fix_text(text)           
-            text = re.sub(r'([^\w\s])', r' \1' , text)
+                 text = re.sub(r'([^\w\s])', r' \1' , text)
             text = re.sub(r'(\d+)', r' \1 ', text)
             text = re.sub(r'(\d+\))', r' \1 ', text)     
             text = re.sub(r'("  ")', r' \1 ', text)
@@ -3841,7 +3757,6 @@ class TranslationWindow:
             self.Farhang = QTextEdit(win)
             self.Farhang.setFont(font)
             self.Farhang.setReadOnly(True)
-           # self.Farhang.setText(text)
             self.Farhang.move(100, 250)
             self.Farhang.resize(600, 110)  # Change the width to 200
             self.button_Farhang = QPushButton(win)
@@ -3885,12 +3800,9 @@ class TranslationWindow:
             checkbox_2.resize(600, 35)
             self.button_Farhang.move(100, 205)
             self.button_Farhang.resize(600, 35)
-
             self.words_list.resize(600, 35)
             self.words_list.move(100, 420)
-            self.hand_word=word
-
-    
+            self.hand_word=word    
             self.button_Farhang.clicked.connect(self.searching_farhang)
             self.button_Farhang.setText(self.M246)
             self.words_list.setText(self.M247)
@@ -3923,7 +3835,6 @@ class TranslationWindow:
                         confirmation = QMessageBox.question(None,self.M134,f"{self.M137} ' {hand_word} '" , QMessageBox.Yes |  QMessageBox.No)
                         if confirmation == QMessageBox.Yes:
                             self.saveNewWord(hand_word)
-
             return hand_word
         except Exception as e:
             self.info3(e)
@@ -4002,16 +3913,17 @@ class TranslationWindow:
                     self.clicked_trueWords=False
         except:
             self.Farhang.setReadOnly(True)
-   # from PyQt5 import QtGui
-
     def highlight_words(self, text_edit, word):
+        if  self.stopBook==True: 
+            return 
         try:
             format = QtGui.QTextCharFormat()
-            # Change the color of the text
             format.setForeground(QtGui.QBrush(QtGui.QColor("blue")))
             cursor = text_edit.textCursor()
             cursor.setPosition(0)
             while True:
+                if  self.stopBook==True: 
+                    return 
                 cursor = text_edit.document().find(word, cursor.position())
                 if not cursor.isNull():
                     cursor.mergeCharFormat(format)
@@ -4037,7 +3949,6 @@ class TranslationWindow:
                     break
         except:
             pass
-
     def al110(self,state):
         self.internal=True
         if self.dgh==False :
@@ -4061,7 +3972,7 @@ class TranslationWindow:
             QApplication.exit()
         except:
             pass
-    def save_file_in(self):
+    def save_file_in_qt5(self):
             self.export_docx_=True
             try:
                 doc = dox.Document()
@@ -4096,8 +4007,9 @@ class TranslationWindow:
                 self.rev=False
                 messagebox.showinfo(self.M44, f"{str(e)}")
     def research(self):
+        self.stopBook=False
         self.total.setText(str(self.total_para))
-        self.i=0
+        self.cunter=0
         self.entry2.clear() 
         self.stops = False
         try:
@@ -4130,50 +4042,64 @@ class TranslationWindow:
                     if  word in self.persian_conjunctions:
                         return self.entry.toPlainText()
                 for line in self.ketab_:
+                    if self.stopBook==True: 
+                        self.ketab_=""
+                        lines=[]
+                        return None
                     if self.end==True:
                         break
-                    if  self.deghat.get():
-                        
-                        if self.ktb==self.M194:
+                    if  self.deghat.get():                       
+                        if self.ktb in [self.M194,self.M211,self.M174]:
                             word=self.replace_characters(word,True)
-                            line1=self.clean_text_arabic(line)
+                            line2=self.clean_text_arabic(line)
+                            line1=self.replace_characters(line2,True,False)
                             words = line1.split()
                             word=self.clean_text_arabic(word)
                         else:
                             words = line.split()
                             word=self.replace_characters(word,False)
-                            #words = line.split()
                         if words:
                             if word in words:
                                 lines.append(line+'\n')
-                                self.i+=1
-                                if len(lines)+1>self.total_para or self.stops==True: 
+                                self.cunter+=1
+                                if len(lines)+1>self.total_para or self.stops==True:
                                     break
-                            else:
-                                if word in words:
-                                    lines.append(line+'\n')
-                                    self.i+=1
-                                    if len(lines)+1>self.total_para or self.stops==True: 
-                                        break
+                                if  self.stopBook==True: 
+                                     self.ketab_=""
+                                     lines=[] 
+                                     return None
                     else:
-                        if self.ktb==self.M194:
+                        if self.ktb in [self.M194,self.M211,self.M174]:
                             word=self.replace_characters(word,True)
-                            line1=self.clean_text_arabic(line)
+                            line2=self.clean_text_arabic(line)
+                            line1=self.replace_characters(line2,True,False)
                             word=self.clean_text_arabic(word)
                             if word in line1:
                                 lines.append(line+'\n')
-                                self.i+=1
-                                if len(lines)+1>self.total_para or self.stops==True: 
+                                self.cunter+=1
+                                if len(lines)+1>self.total_para or self.stops==True : 
                                     break
+                                if  self.stopBook==True: 
+                                     self.ketab_=""
+                                     lines=[] 
+                                     return None
                         else:
                             word=self.replace_characters(word,False)
                             if word in line:
                                 lines.append(line+'\n')
-                                self.i+=1
+                                self.cunter+=1
                                 if len(lines)+1>self.total_para or self.stops==True: 
                                     break
+                                if  self.stopBook==True: 
+                                     self.ketab_=""
+                                     lines=[] 
+                                     return None
                 self.entry2.clear() 
-                self.total_cunt.setText(str(self.i))                               
+                if  self.stopBook==True: 
+                        self.ketab_=""
+                        lines=[] 
+                        return None
+                self.total_cunt.setText(str(self.cunter))                               
                 if not lines:
                     self.entry2.setText(f"Not found {word} ")
                     self.separate_search=False
@@ -4187,28 +4113,26 @@ class TranslationWindow:
         except:
             self.separate_search=False
             return None
-
     def paste_from_clipboard_qt5(self):
             try:
-                self.entry.setText(self.root.clipboard_get())
+                self.entry.setText( pyperclip.paste())
             except :
                 pass
     def copy_to_clipboard_qt5(self):
         try:
             selected_text = self.entry2.toPlainText()
-            clipboard = QApplication.clipboard()
-            if clipboard is not None:
-                clipboard.clear()
-            clipboard.setText(selected_text)
-            self.update_notification(" متن کپی شد")
+            pyperclip.copy(selected_text)
+            self.update_notification("متن کپی شد")
         except Exception:
             self.update_notification("کپی نشد")
     def update_total_para(self):
-        self.total_para = int(self.total.text())   
- 
+        if len (self.total.text())>0:
+          try:
+           self.total_para = int(self.total.text())   
+          except:
+              self.total_para=5
     def book_search(self,text,word,results): 
         self.end=False
-        self.clipboard_text=""
         try:
             self.dgh=False
             self.internal=False
@@ -4262,20 +4186,17 @@ class TranslationWindow:
             self.total_cuntlable.resize(270, 30)
             self.total_cuntlable.move(400, 580)
             self.total_cuntlable.setText("تعداد یافته ها")
-
             self.total_cunt.setFont(font)
             self.total_cunt.resize(66, 30)
             self.total_cunt.move(320, 580)
-          #  self.total_cunt.setText(str(self.i))
             self.total_cunt.setReadOnly(True)
-
             button.setText(self.M132)
             button.move(14, 610)
             button.resize(110, 35)
             self.entry.setText(word)
             self.entry2.setText(results)
             self.total_cunt.setText(str(self.i)) 
-            if not self.books==self.M183 and not self.sina==self.M181:
+            if not self.books==self.M183 and not self.sina==self.M181 and word!="":
                 self.highlight_words(self.entry2, word)
             button_search.setText(self.M198)
             button_search.move(14, 140)
@@ -4288,15 +4209,13 @@ class TranslationWindow:
             button_copy.resize(110, 35)
             button_save.setText(self.M4)
             button_save.move(280, 610)
-            button_save.resize(210, 35)        
-            if self.separate_search==True:
-                self.research()
+            button_save.resize(210, 35)   
             button_search.clicked.connect(self.research)
             self.entery_s=self.entry2
             button.clicked.connect(self.on_button_clicked)
             button_paste.clicked.connect(self.paste_from_clipboard_qt5)
             button_copy.clicked.connect(self.copy_to_clipboard_qt5)
-            button_save.clicked.connect(self.save_file_in)
+            button_save.clicked.connect(self.save_file_in_qt5)
             def on_checkbox_state_changed(state):               
                 self.off_ketab()
             checkbox.stateChanged.connect(on_checkbox_state_changed)
@@ -4307,6 +4226,8 @@ class TranslationWindow:
             checkbox_2.resize(236, 35)
             win.show()
             app.exec_()
+            if self.stopBook==True: 
+                return word
             if self.entry.toPlainText():
                 hand_word = self.entry.toPlainText()
             elif  self.research():
@@ -4318,7 +4239,6 @@ class TranslationWindow:
             return hand_word                          
         except Exception as e :
             if self.separate_search==True:
-               #self.off_ketab()
                self.separate_search=False
             return word
     def abjad(self,word):
@@ -4334,10 +4254,11 @@ class TranslationWindow:
         except:
             return word
 
-    def ketab(self, text):
-        self.i=0
+    def search(self, text):
+        self.cunter=0
         self.end=False
         self.stops = False
+        self.stopBook=False
         try:
             new_text = []
             lines=[]
@@ -4354,8 +4275,8 @@ class TranslationWindow:
             else:
                 words=text.split()
             for word in words:
-                self.i=0
-                if  len(word)<3 or self.from_code in('fa','ar','ur') and not re.search(r'[\u0600-\u06FF]', word):
+                self.cunter=0
+                if  len(word)<3 or self.from_code in('fa','ar','ur') and (self.ktb not in [self.M166,self.M167,self.M173,self.M188,] and not re.search(r'[\u0600-\u06FF]', word)):
                     new_text.append(word)
                     continue                 
                 if self.end==True:
@@ -4380,56 +4301,83 @@ class TranslationWindow:
                     new_word=self.book_search(text,word,results)
                     new_text.append(word) 
                 else:
-                    for line in self.ketab_:                                    
+                    for line in self.ketab_:   
+                        if self.stopBook==True: 
+                           self.ketab_=""
+                           return None                                 
                         if  self.deghat.get():
-                            if self.ktb ==self.M194:
-                                line_celear=self.clean_text_arabic(line)                               
+                            if self.ktb in [self.M194,self.M211,self.M174]:
+                                line_celear=self.clean_text_arabic(line)
+                                line_celear=self.replace_characters(line_celear,True,False)                               
                                 word=self.clean_text_arabic(word)
                                 words = line_celear.split()
                             elif self.ktb ==self.M172:
-                                line_celear=self.replace_characters(line,True)
+                                line_celear=self.replace_characters(line,True,False)
                                 word=self.replace_characters(word,True)
                                 words = line_celear.split()
-
                             else:
                                 words = line.split()
                             if words:
                                 if  not self.book_aktive and (words[0] == word or words[-1] == word )or (len(words)>3 and (words[+1] == word or words[+2] == word)):
                                     lines.append(line+'\n')
-                                    self.i+=1
+                                    self.cunter+=1
                                     if len(lines)+1>self.total_para or self.stops==True:
                                         break
+                                    if  self.stopBook==True:
+                                     self.ketab_="" 
+                                     lines=[] 
+                                     return None
                                 else:
                                     if word in words:
                                         lines.append(line+'\n')
-                                        self.i+=1
-                                        if len(lines)+1>self.total_para or self.stops==True:    
+                                        self.cunter+=1
+                                    if len(lines)+1>self.total_para or self.stops==True:    
                                             break
+                                    if  self.stopBook==True: 
+                                     self.ketab_=""
+                                     lines=[] 
+                                     return None
                         else:
-                            if self.ktb ==self.M194:
-                                line_celear=self.clean_text_arabic(line)                               
+                            if self.ktb in [self.M194,self.M211,self.M174]:
+                                line_celear=self.clean_text_arabic(line)  
+                                line_celear=self.replace_characters(line,True)
                                 word=self.clean_text_arabic(word) 
                                 if word in line_celear:
                                     lines.append(line+'\n')
-                                    self.i+=1
-                                    if len(lines)+1>self.total_para or self.stops==True: 
+                                    self.cunter+=1
+                                    if len(lines)+1>self.total_para or self.stops==True : 
                                         break
+                                if  self.stopBook==True: 
+                                     self.ketab_=""
+                                     lines=[] 
+                                     return None
                             elif self.ktb ==self.M172:
                                 line_celear=line
                                 word=self.replace_characters(word,False)
-
                                 if word in line:
                                     lines.append(line+'\n')
-                                    self.i+=1
+                                    self.cunter+=1
                                     if len(lines)+1>self.total_para or self.stops==True: 
                                         break
+                                if  self.stopBook==True:
+                                     self.ketab_="" 
+                                     lines=[] 
+                                     return None
                             else:
                                 word=self.replace_characters(word,False)
                                 if word in line:
                                     lines.append(line+'\n')
-                                    self.i+=1
+                                    self.cunter+=1
                                     if len(lines)+1>self.total_para or self.stops==True: 
                                         break
+                                if  self.stopBook==True: 
+                                     self.ketab_=""
+                                     lines=[] 
+                                     return None
+                    if  self.stopBook==True: 
+                        self.ketab_=""
+                        lines=[] 
+                        return None
                                                 
                     if not lines:
                         new_text.append(word)                    
@@ -4441,7 +4389,6 @@ class TranslationWindow:
                             new_text.append(new_word)
                         else:
                             new_text.append(word)
-            
             return ' '.join(new_text)
         except Exception:
             return text
@@ -4519,23 +4466,21 @@ class TranslationWindow:
         text = text.replace('9', '۹')
         return text
     def clean_text_arabic(self,text):
-            # Normalize the text
             normalized_text = unicodedata.normalize('NFD', text)
-            # Remove diacritics
             cleaned_text = "".join(c for c in normalized_text if unicodedata.category(c) != 'Mn')
             return cleaned_text       
-    def replace_characters(self, text,research):       
+    def replace_characters(self, text,research,special_chars=True):       
         words = text.split()
         try:
             for i in range(len(words)): 
-                for char in self.special_chars:
-                    if char in words[i]:
-                        words[i] = words[i].replace(char, ' ' + char + ' ' ) 
+                if self.stopBook==True or self.stops==True:    
+                    return text
+                if special_chars==True:
+                    for char in self.special_chars:
+                        if char in words[i]:
+                            words[i] = words[i].replace(char, ' ' + char + ' ' ) 
                 words[i] = words[i].replace('.', ' . ')
-                words[i] = words[i].replace('َ', '')
-                words[i] = words[i].replace('ُ', '')
                 words[i] = words[i].replace('  ', ' ')
-
                 if research==True:
                    words[i] = words[i].replace('ی', 'ي') 
                    words[i] = words[i].replace('ئ', 'ي')
@@ -4555,7 +4500,6 @@ class TranslationWindow:
                 words[i] = words[i].replace(u"\ufecb", "ع")
                 words[i] = words[i].replace('ؤ', 'و')
                 words[i] = words[i].replace('ﻮ', 'و')
-                
                 words[i] = words[i].replace('ك', 'ک')
                 words[i] = words[i].replace('ﻚ', 'ک')
                 words[i] = words[i].replace('ﺑ', 'ب')
@@ -4563,51 +4507,30 @@ class TranslationWindow:
                 words[i] = words[i].replace('ك', 'ک')
                 words[i] = words[i].replace('ﻚ', 'ک')
                 words[i] = words[i].replace('ﺎ', 'ا')
-
                 words[i] = words[i].replace('ﺪ', 'د')
                 words[i] = words[i].replace('ﯿ', 'ی')
                 words[i] = words[i].replace('ﻪ', 'ه')
-
-
-                
                 words[i] = words[i].replace('ﻬ', 'ه')
                 words[i] = words[i].replace('ﻪ', 'ه')
                 words[i] = words[i].replace('ﻼ', 'لا')
                 words[i] = words[i].replace('ﯿ', 'ی')
-                words[i] = words[i].replace('ﻨ', 'ن')
-
-                
+                words[i] = words[i].replace('ﻨ', 'ن') 
                 words[i] = words[i].replace('ﺮ', 'ر')
                 words[i] = words[i].replace('ﺷ', 'ش')
                 words[i] = words[i].replace('ﺐ', 'ب')
-   
-
                 words[i] = words[i].replace('ﯽ', 'ی')
                 words[i] = words[i].replace('ﻐ', 'غ')     
-
-
                 words[i] = words[i].replace('ﻌ', 'ع') 
-
                 words[i] = words[i].replace('ﺢ ', 'ح')
-   
                 words[i] = words[i].replace('إ', 'ا')
                 words[i] = words[i].replace('أ', 'ا')
                 words[i] = words[i].replace('إ', 'ا')
-                
-                words[i] = words[i].replace('ۀ', "ه")
-                words[i] = words[i].replace('أ', 'ا')
                 words[i] = words[i].replace('%', '٪')
-                words[i] = words[i].replace('ْ', '')
-                words[i] = words[i].replace('ٍ', '')
-                words[i] = words[i].replace('ْ', '')
                 words[i] = words[i].replace('ٍ', '')
                 words[i] = words[i].replace('ً', '')
                 words[i] = words[i].replace('ٌ', '')
                 words[i] = words[i].replace('ٍ', '')
-                words[i] = words[i].replace('َ', '')
                 words[i] = words[i].replace('ُ', '')
-                words[i] = words[i].replace('', '')
-                words[i] = words[i].replace(" ّ", "")
                 words[i] = words[i].replace(u"\u200F", "")
                 words[i] = words[i].replace(u"\u200E", "")
                 words[i] = words[i].replace(u"\u200D", "")
@@ -4616,9 +4539,6 @@ class TranslationWindow:
                 words[i] = words[i].replace(u"\u00A0", "")
                 words[i] = words[i].replace(u"\u0640", "")
                 words[i] = words[i].replace(u"\u0640", "")
-                words[i] = words[i].replace(" ْ", "")
-
-                words[i] = words[i].replace(' ِ', '')
                 words[i] = words[i].replace('  ', ' ')
                 words[i] = words[i].replace('  ', ' ')
                 if words[i] == "اهلل":
@@ -4627,7 +4547,7 @@ class TranslationWindow:
                 words[i] = words[i].replace("اهلل", "الله")
         except Exception :
             words[i] = ""
-        return ' '.join(words)   
+        return ' '.join(words)  
     def search_internet(self,text):
         try:
             if self.internet.get()==self.M164:
@@ -4674,7 +4594,6 @@ class TranslationWindow:
             label = QTextEdit(win)
             label.setText(text)
             label.move(100, 20)
-            #label.setWordWrap(True)
             label.resize(600, 96)  
             entry = QLineEdit(win)
             label2 = QLabel(win) 
@@ -4776,7 +4695,7 @@ class TranslationWindow:
         self.selected_url = text
         self.download_entry.setText(self.selected_url)
     def paste_downlod(self):
-        self.download_entry.insertPlainText(self.root.clipboard_get())
+        self.download_entry.insertPlainText(pyperclip.paste())
     def download_manager(self):
         try:
             with open(self.url_downloads, 'r', encoding="utf-8") as f:
@@ -4804,7 +4723,6 @@ class TranslationWindow:
             combo.move(15, 240)
             combo.resize(420, 45)
             combo.currentTextChanged.connect(self.combobox_changed)
-            #combo.clear()
             combo.addItems(self.url_down)
             button_search.setText(self.M21)
             button_search.move(15, 300)
@@ -4893,7 +4811,8 @@ class TranslationWindow:
         self.pdf_convert=False
         self.update_notification(self.M42) 
         self.root.update() 
-        
+    def stop_book(self):
+        self.stopBook=True
     def process_finish(self):
         self.pack_downloaded = False
         self.excel=False 
@@ -4914,3 +4833,6 @@ if __name__== "__main__":
     root.mainloop()
     "الحمد الله"
     "اللهم صل علي محمد و آل محمد و عجل فرجهم و اهلک والعن اعداهم"
+
+
+
