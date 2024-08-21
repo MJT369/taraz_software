@@ -50,6 +50,7 @@ dox = LazyImport("docx")
 SpellChecke = LazyImport("spellchecker")
 Translator1 = LazyImport("translatepy")
 Translator2 = LazyImport("argostranslate.translate")
+pakage=LazyImport('argostranslate') 
 Translator3 = LazyImport("googletrans")
 Translator5 = LazyImport("deep_translator")
 translator6 = LazyImport("translators")
@@ -128,12 +129,60 @@ class TranslationWindow:
        self.myColor4='#d3ecfa'
        self.myColor5='#a67b19'
        self.myColor6='#a67b19'
+       self.default="""
+plastik
+فارسی
+فارسی
+False
+#141414
+14
+Arial
+مترجم دیپ
+spaceCorrect1"""
+
+       self.default2="""
+plastik
+English
+English
+False
+#141414
+14
+Arial
+Google 1
+spaceCorrect1"""
+
        try:                             
             self.root = root
             root.title(self.nam)
-            with open('them.json', 'r') as f:
-                t= f.read()
-                self.num=t
+            try:
+                with open('them.json', 'r',encoding="utf-8") as f:
+                    lines = f.read().splitlines()
+                    self.them1 = lines[1]
+                    self.lang_in1 = lines[2]
+                    self.lang_out1 = lines[3]
+                    self.corrections1 = lines[4]
+                    self.color1 = lines[5]
+                    self.size1 = lines[6]
+                    self.font1 = lines[7]
+                    self.translator1 = lines[8]
+                    self.spaceCorrect1 = lines[9]
+            except:
+                            #self.update_notification(self.M254)
+                with open('them.json', 'w',encoding="utf-8") as f:
+                    f.write(self.default)
+                with open('them.json', 'r',encoding="utf-8") as f:
+                    lines = f.read().splitlines()
+                    self.them1 = lines[1]
+                    self.lang_in1 = lines[2]
+                    self.lang_out1 = lines[3]
+                    self.corrections1 = lines[4]
+                    self.color1 = lines[5]
+                    self.size1 = lines[6]
+                    self.font1 = lines[7]
+                    self.translator1 = lines[8]
+                    self.spaceCorrect1 = lines[9]
+
+            self.num=self.them1
             root.geometry("1280x600")
             root.configure(bg=self.myColor3)  # Setting color of main window to self.myColor
             self.dir= os.getcwd()
@@ -144,7 +193,7 @@ class TranslationWindow:
                 style.theme_use('plastik')
             style.configure('TButton', font=('arial', 11,'bold'))
             book = tk.StringVar(value="کتابخانه")        
-            books = ["قرآن",'نهج البلاغه',"اصول کافي","نهج الفصاحه","موعظه","سه دقیقه در قیامت"]
+            books = ["قرآن",'نهج البلاغه',"اصول کافي","نهج الفصاحه","موعظه","سه دقیقه در قیامت","تمنای وصال",'شعر تمنای وصال']
             self.book_box = tk.OptionMenu(root, book, *books)
             self.book_box.config(font=('Arial', 11,"bold"),bg=self.myColor4,highlightthickness=1)
             self.book_box.bind("<<StringVarSelected>>", self.gift)
@@ -157,10 +206,10 @@ class TranslationWindow:
                      'Simplified Arabic','Traditional Arabic', ]
             self.font_box = tk.OptionMenu(root, font_var, *fonts)            
             self.font_box.cget("text")
-            self.size_var = tk.StringVar(value="16")  # Create a StringVar
+            self.size_var = tk.StringVar(value=self.size1)  # Create a StringVar
             self.size_box = tk.Spinbox(root, from_=0, to=100, textvariable=self.size_var,width=10, relief="sunken", repeatdelay=500, repeatinterval=100,
                      font=("Arial", 12), bg="lightgrey", fg="blue", command=self.update_font)
-            self.text_font = ( 'Arial', 19)
+            self.text_font = ( self.font1, self.size1)
             font_var.trace("w", self.update_font)
             self.empty_1=False
             self.regui()
@@ -241,6 +290,7 @@ class TranslationWindow:
                 self.M115: "hi",
                 self.M116: "ja",
                 self.M117: "ur",}
+            
             self.input_text_label = ttk.Label(root,  text=self.M200)
             self.output_text_label = ttk.Label(root,  text=self.M202)
             self.correction = tk.Checkbutton(root, text=self.M84, variable=self.var, command=self.aktive_correction)
@@ -248,7 +298,7 @@ class TranslationWindow:
             self.translator_var = tk.StringVar()           
             self.translator_var_label = ttk.Label(root,  text=self.M124)           
             self.translator_var_label.config(font=('Arial', 11))
-            self.translator_var.set(self.M122)  # Set default value
+            self.translator_var.set(self.translator1)  # Set default value
             self.translator_menu = ttk.Combobox(root,state="readonly", textvariable=self.translator_var,
                                                 values=[self.M118,self.M119,self.M120,self.M259,self.M260,self.M261,self.M121,self.M122,self.M201,self.M123])
             self.translator_menu.bind("<<ComboboxSelected>>", self.lang_code)
@@ -279,14 +329,13 @@ class TranslationWindow:
                                                                     self.M108,  self.M111,
                                                                     self.M112,self.M113,self.M114,self.M115,
                                                                     self.M116,self.M117],cursor="hand2")
-            self.source_language_combo.set(self.M102)           
-            # self.target Language Label and Combo
+            self.source_language_combo.set(self.lang_in1)           
             self.target_language_combo = ttk.Combobox(root,state="readonly",values=[self.M102,self.M100,self.M103,self.M113, self.M101,
                                                                     self.M109,self.M106,self.M107,
                                                                     self.M108, self.M110, self.M111,
                                                                     self.M112,self.M113,self.M114,self.M115,
                                                                     self.M116,self.M117],cursor="hand2")
-            self.target_language_combo.set(self.M102)
+            self.target_language_combo.set(self.lang_out1)
             self.target_language_combo.config(font=('Arial', 12,"bold"))
             self.source_language_combo.config(font=('Arial', 12,"bold"))
             self.source_language_combo.bind("<<ComboboxSelected>>", self.lang_code)
@@ -317,6 +366,7 @@ class TranslationWindow:
             self.input_console.config(yscrollcommand=input_scrollbar.set)
             self.translate_pay=False
             self.arg_para=False
+            self.extract=False
             self.start2()
             self.start()
         except :
@@ -410,10 +460,18 @@ class TranslationWindow:
     def them(self,event):
         t=self.them_num.get()
         try:
-            with open('them.json', 'w') as f:
-                    f.write(t)
+            with open('them.json', 'r',encoding="utf-8") as f:
+                lines = f.read().splitlines()
+            if len(lines) > 1:
+                lines[1] = t  # replace the second line
+
+            with open('them.json', 'w',encoding="utf-8") as f:
+                for line in lines:
+                    f.write(line + '\n')
         except:
             self.update_notification(self.M254)
+            with open('them.json', 'w',encoding="utf-8") as f:
+                f.write(self.default)
         result = messagebox.askquestion(self.M258,self.M87)       
         if result == 'yes':  
            self.restart_program()
@@ -441,6 +499,8 @@ class TranslationWindow:
             self.rakb_menu = tk.Menu(menubar, tearoff=0)
             self.frg = tk.Menu(menubar, tearoff=0)
             self.format = tk.Menu(menubar, tearoff=0)
+            self.input_console.config(fg=self.color1)
+            self.output_console.config(fg=self.color1) 
             menubar.add_cascade(label=self.M1, menu=self.file_menu)
             menubar.add_cascade(label=self.M8, menu=self.edit_menu)
             menubar.add_cascade(label=self.M150, menu=self.rakb_menu)
@@ -1093,6 +1153,8 @@ class TranslationWindow:
         with open('index_lang.json', 'r', encoding='utf-8') as f:
             lang = f.read()
             if lang == 'en':
+                    with open('them.json', 'w',encoding="utf-8") as f:
+                        f.write(self.default)
                     result = messagebox.askquestion('بازنشانی برنامه برای ایجاد تغییر زبان فارسی','برای ایجاد تغییرات زبان برنامه باید بازنشانی شود آیا تایید می فرمایید؟')       
                     if result == 'yes':
                         with open('index_lang.json', 'w', encoding='utf-8') as f:
@@ -1382,8 +1444,11 @@ class TranslationWindow:
                 if lang != 'en':
                    result= messagebox.askquestion("Program need restart to take effect for  English", "Do you want to restart program for take effect ?")
                 if result == 'yes':
+                    with open('them.json', 'w',encoding="utf-8") as f:
+                        f.write(self.default2)
                     with open('index_lang.json', 'w', encoding="utf-8") as f:
                             f.write('en')  
+                    # self.start1()
                     self.restart_program()    
                 else:
                     self.update_notification("Program language already English")
@@ -1668,11 +1733,42 @@ class TranslationWindow:
         self.color_code = colorchooser.askcolor(title ="Choose color")
         self.input_console.config(fg=self.color_code[1])
         self.output_console.config(fg=self.color_code[1]) 
+        t=self.color_code[1]
+        try:
+            with open('them.json', 'r',encoding="utf-8") as f:
+                lines = f.read().splitlines()
+
+            if len(lines) > 4:
+                lines[5] = t  # replace the second line
+            with open('them.json', 'w',encoding="utf-8") as f:
+                for line in lines:
+                    f.write(line + '\n')
+        except:
+            self.update_notification(self.M254)
+            with open('them.json', 'w',encoding="utf-8") as f:
+                f.write(self.default)
     def update_font(self, *args):   
-           size = self.size_box.get()
-           self.new_font = (self.font_box.cget("text"), size)           
-           self.output_console.config(font=self.new_font)
-           self.input_console.config(font=self.new_font)
+        size = self.size_box.get()
+        self.new_font = (self.font_box.cget("text"), size)           
+        self.output_console.config(font=self.new_font)
+        self.input_console.config(font=self.new_font)
+        t=size
+        t2=self.font_box.cget("text")
+        try:
+            with open('them.json', 'r',encoding="utf-8") as f:
+                lines = f.read().splitlines()
+
+            if len(lines) > 6:
+                lines[6] = t  # replace the second line
+                lines[7] = t2
+            with open('them.json', 'w',encoding="utf-8") as f:
+                for line in lines:
+                    f.write(line + '\n')
+        except:
+            self.update_notification(self.M254)
+            with open('them.json', 'w',encoding="utf-8") as f:
+    
+                f.write(self.default)
     def new_file(self):
         self.input_console.delete(1.0, tk.END)
         self.current_file = None
@@ -1790,7 +1886,8 @@ class TranslationWindow:
         if self.thread_active==True:
            self.update_notification(self.M24)
            return
-        self.pdf = False
+        
+        self.extract=False
         try:
             filetypes = [
                 ('Supported Files', '*.pdf *.docx *.xlsx'),
@@ -1814,7 +1911,7 @@ class TranslationWindow:
                 if self.file_path:
                     self.thread_active=True
                     self.tranc_err=False 
-                    self.thrad=threading.Thread(target=self.run_document).start() 
+                    threading.Thread(target=self.run_document).start() 
                 else:
                     self.update_notification(self.M25)
             else:
@@ -1823,16 +1920,20 @@ class TranslationWindow:
             self.process_finish()
             self.update_notification(f"  {self.M27}   : {str(e)}")
     def trans_file(self):
-        self.stops=False 
-        if self.thread_active ==False:
+        if self.thread_active==True:
+           self.update_notification(self.M24)
+           return       
+        self.extract=False
+        try:
             if self.file_path:
                 self.thread_active=True
                 self.tranc_err=False 
                 threading.Thread(target=self.run_document).start() 
             else:
                 self.update_notification(self.M25)
-        else:
-            self.update_notification(self.M24)
+        except Exception as e:
+            self.process_finish()
+            self.update_notification(f"  {self.M27}   : {str(e)}")
     def run_document(self):
         self.stops=False 
         try:
@@ -1844,7 +1945,7 @@ class TranslationWindow:
                     if not confirmation:
                         self.stop()
                         return
-                self.pdf = True
+                
                 self.process_pdf_file()
             elif self.file_path.endswith(".docx"):
                 self.docx=True
@@ -1859,6 +1960,7 @@ class TranslationWindow:
     def process_pdf_file(self):
         self.stops=False 
         try:
+           
             if self.document_mode_box.cget('text') in [self.M96, self.M97]  or self.pdf_convert==True:
                self.process_pdf2()
             elif self.document_mode_box.cget('text') ==self.M98:
@@ -1867,9 +1969,11 @@ class TranslationWindow:
             else:
                 self.skip_rtl = True
                 self.process_pdf()
+            
             self.update_notification(self.M42) 
         except Exception as e:
             self.skip_rtl = False
+          
             self.update_notification(f"  {self.M44}   : {str(e)}")
     def process_docx_file(self):
         self.thread_active = True
@@ -1878,13 +1982,16 @@ class TranslationWindow:
            self.rev=True
         else:
            self.process_docx()
+        
         self.update_notification(self.M42) 
     def process_xlsx_file(self):
+             
         self.thread_active = True
         if self.document_mode_box.cget('text') in [self.M96, self.M97]:
            self.process_xlsx2()
         else:
            self.process_xlsx()
+        
         self.update_notification(self.M42) 
     def pdf_converter(self):
         try:
@@ -1899,7 +2006,6 @@ class TranslationWindow:
             self.update_notification(f"  {self.M44}  : {e}")
     def process_pdf(self):
         from pypdf import PdfReader
-        self.pdf=True
         try:
             self.update_notification(self.M37)
             if self.document_mode_box.cget('text')==self.M97 :
@@ -1925,7 +2031,6 @@ class TranslationWindow:
                 self.update_notification(f"  {self.M31}: {str(e)}")
                 self.process_finish()    
     def process_pdf2(self):
-        self.pdf==True
         if self.document_mode_box.cget('text')==self.M97 :
            self.update_notification(self.M256)
            self.extract_tables()
@@ -1966,6 +2071,7 @@ class TranslationWindow:
                         if para.text1 not in translated_texts:         
                             translated_texts[para.text1]=self.translate_text(para.text1)                   
                         translated_text = translated_texts[para.text1]
+                        # Flag to check if translation has been applied
                         translation_applied = False                                                 
                         for run in para.runs:
                             if self.stops==True:
@@ -1998,7 +2104,9 @@ class TranslationWindow:
                     return 
                 self.update_notification(self.M145)                      
                 translated_docx_file = os.path.splitext(docx_file2)[0] + '.docx'
+                #translated_pdf_file = os.path.splitext(docx_file2)[0] + '.pdf'
                 doc.save(translated_docx_file) 
+                #docx2.convert(translated_docx_file,translated_pdf_file)
                 file_name_2 = os.path.basename(translated_docx_file)    
                 confirmation = messagebox.askyesno(self.M86,f"{self.M42} {self.M85}  {file_name_2}")
                 os.remove(docx_file)                 
@@ -2010,6 +2118,7 @@ class TranslationWindow:
                 self.process_finish()                                                 
                 messagebox.showinfo(self.M35,f"{self.M44} : {str(e)}")
                 self.update_notification( f"{self.M35} : {str(e)}")                                      
+
     def PDF_Text_RTL(self):
         from pypdf import PdfReader
         self.tranc_err=False
@@ -2027,6 +2136,7 @@ class TranslationWindow:
                 para = doc.add_paragraph()
                 if self.target in [self.M102,self.M109]:
                     para.alignment = dox.enum.text.WD_PARAGRAPH_ALIGNMENT.RIGHT
+                #translated_text="\n".join(translated_text)
                 para.add_run(translated_text)  # Add translated text to the paragraph
             docx_file2 = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word Document", "*.docx")])           
             if not docx_file2:
@@ -2034,7 +2144,9 @@ class TranslationWindow:
                 self.update_notification(self.M32)
                 return
             translated_docx_file = os.path.splitext(docx_file2)[0] + '.docx'
+           # translated_pdf_file = os.path.splitext(docx_file2)[0] + '_ta.pdf'
             doc.save(translated_docx_file)  
+            #docx2.convert(translated_docx_file,translated_pdf_file)
             self.process_finish()           
             confirmation = messagebox.askyesno(self.M86,f"{self.M85} {translated_docx_file}")                
             if confirmation:
@@ -2051,6 +2163,7 @@ class TranslationWindow:
                 if self.stops==True:                    
                     break 
                 para.text2=self.space_correction(para.text)      
+              #  para.text3=self.format_text_2(para.text2)
                 self.update_input( para.text2 + '\n')
                 if self.document_mode_box.cget('text') ==self.M98:
                     self.translate_text(para.text2)
@@ -2081,6 +2194,7 @@ class TranslationWindow:
                                 para_properties = para._element.get_or_add_pPr()
                                 para.alignment = 0                            
                                 para_properties.rtl = False 
+                                        
                         elif not self.from_code in ["fa", "ar","ur"] and  self.to_code in ["fa", "ar","ur"]:
                                 para_properties = para._element.get_or_add_pPr()
                                 para.alignment = 2                             
@@ -2091,6 +2205,7 @@ class TranslationWindow:
                         if para.text not in translated_texts:                            
                             translated_texts[para.text1] = self.translate_text(para.text1)                            
                         translated_text = translated_texts[para.text1]
+                        # Flag to check if translation has been applied
                         translation_applied = False                                                 
                         for run in para.runs:
                             if self.stops==True:
@@ -2133,67 +2248,96 @@ class TranslationWindow:
                 messagebox.showinfo(self.M43,f"{self.M44} : {str(e)}")
                 self.update_notification(f"  {self.M43} : {str(e)}")
     def process_xlsx2(self):
-        self.excel=True
-        import pandas as pd       
+        import pandas as pd
+        from openpyxl import load_workbook
+        from openpyxl.drawing.image import Image
+        self.excel = True
         try:
-            file_info = (f"{self.M91}  {os.path.basename(self.file_path)}")
-            self.update_notification(file_info)           
-            xls = pd.read_excel(self.file_path, sheet_name=None)
-            translated_file =filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Document", "*.xlsx")])
+            file_info = f"{self.M91}  {os.path.basename(self.file_path)}"
+            self.update_notification(file_info)
+            
+            # Load the workbook with openpyxl to preserve images
+            workbook = load_workbook(self.file_path)
+            translated_file = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Document", "*.xlsx")])
+            
             if not translated_file:
-                self.process_finish()                                      
+                self.process_finish()
                 self.update_notification(self.M32)
                 return
-            with pd.ExcelWriter(translated_file) as writer:
-                for sheet_name, df in xls.items():
-                    translated_data = []
-                    if self.stops==True:
-                        break 
-                    for row in df.values:
-                        translated_row = []   
-                        if self.stops==True:
-                            break                             
-                        for cell in row:
-                            try:
-                                if self.stops==True:
-                                    break 
-                                if  len(str(cell)) < 1:
-                                    break 
-                                cell=self.space_correction(str(cell))
-                                self.thread_active = True   
-                                self.stops=False                       
-                                self.update_input(cell+'\n')                    
-                                translated_text =self.translate_text(cell)
-                                if not isinstance(cell, float)  :
-                                    if isinstance(cell, int):
-                                        cell = str(cell)                        
-                            except Exception as e:
-                                self.update_notification( f"{self.M44} : {str(e)}")
-                                translated_text = cell
-                            translated_row.append(translated_text)
-                        translated_data.append(translated_row)                                
-                    translated_df = pd.DataFrame(translated_data)
-                    translated_df.to_excel(writer, sheet_name=sheet_name, index=False)
-                messagebox.showinfo({self.M42}, {self.M33})
-                self.process_finish()                                                  
+            
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                data = sheet.values
+                columns = next(data)[0:]
+                df = pd.DataFrame(data, columns=columns)
+                
+                translated_data = []
+                if self.stops:
+                    break
+                
+                for row in df.values:
+                    translated_row = []
+                    translated_text = ""
+                    if self.stops:
+                        break
+                    
+                    for cell in row:
+                        try:
+                            if self.stops:
+                                break
+                            if len(str(cell)) < 1:
+                                break
+                            
+                            if cell is None :
+                                translated_text = ""
+                            else:
+                                cell = self.space_correction(str(cell))
+                                if self.extract:
+                                    self.thread_active = True
+                                    self.stops = False 
+                                cell = self.format_text(cell)
+                                self.update_input(cell + '\n')                                  
+                                translated_text = self.translate_text(cell)
+                            
+                            if not isinstance(cell, float):
+                                if isinstance(cell, int):
+                                    cell = str(cell)
+                        except Exception as e:
+                            self.update_notification(f"{self.M44} : {str(e)}")
+                            translated_text = cell
+                        translated_row.append(translated_text)
+                    
+                    translated_data.append(translated_row)
+                
+                translated_df = pd.DataFrame(translated_data)
+                for r_idx, row in enumerate(translated_df.values, 2):
+                    for c_idx, value in enumerate(row, 1):
+                        sheet.cell(row=r_idx, column=c_idx, value=value)
+            
+            workbook.save(translated_file)
+            
+            messagebox.showinfo(self.M42, self.M33)
+            self.process_finish()
             os.startfile(translated_file)
             return
-        except Exception as e:   
-            messagebox.showinfo(self.M23,f"{self.M44} : {str(e)}")
-            self.update_notification( f"{self.M23} : {str(e)}")
+        
+        except Exception as e:
+            messagebox.showinfo(self.M23, f"{self.M44} : {str(e)}")
+            self.update_notification(f"{self.M23} : {str(e)}")
 
     def extract_tables(self):
+        import pandas as pd
+        from openpyxl import load_workbook
+        from openpyxl.drawing.image import Image
         self.update_notification(self.M45)
         try:
             import camelot
-            from openpyxl import Workbook
             source_path = os.path.join(self.dir, 'gs10012w64.exe')
-            if self.find_folders_2()==False:
-              if messagebox.askyesno(self.M86,f"{self.M88}"):
+            if not self.find_folders_2():
+                if messagebox.askyesno(self.M86, f"{self.M88}"):
                     os.startfile(source_path)
-                    #time.sleep(12)
-                    if self.find_folders_2()==True:                         
-                        if messagebox.askyesno(self.M86,f"{self.M87}"  ):
+                    if self.find_folders_2():
+                        if messagebox.askyesno(self.M86, f"{self.M87}"):
                             os.system("shutdown /r /t 3")
                     else:
                         self.update_notification(self.M45)
@@ -2202,49 +2346,57 @@ class TranslationWindow:
         except Exception as e:
             self.update_notification(f"  {self.M47}  {str(e)}")
             self.process_finish()
-            return        
+            return
+
         try:
             self.update_notification(self.M48)
-            destination =filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Document", "*.xlsx")])
+            destination = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Document", "*.xlsx")])
             if not destination:
                 self.update_notification(self.M47)
                 self.process_finish()
                 return
+
             tables = camelot.read_pdf(self.file_path, flavor='lattice', pages='all')
-            wb = Workbook()
-            wb.remove(wb.active)
-            for i, table in enumerate(tables):
-                if self.stops==True:                       
-                    break 
-                df = table.df
-                ws = wb.create_sheet(title=f'Table {i}')
-                for index, row in df.iterrows():
-                    ws.append(row.tolist())
-                self.update_notification(  f" {self.M49} {i}.")
-            wb.save(destination)
+            with pd.ExcelWriter(destination, engine='openpyxl') as writer:
+                for i, table in enumerate(tables):
+                    if self.stops:
+                        break
+                    df = table.df
+                    df.to_excel(writer, sheet_name=f'Table {i}', index=False)
+                    self.update_notification(f" {self.M49} {i}.")
+            
             messagebox.showinfo(self.M42, f"{len(tables)} {self.M50} !")
             self.process_finish()
             self.update_notification(self.M50)
-            if self.pdf_convert==True:
+            
+            if self.pdf_convert:
                 self.update_notification(self.M33)
                 os.startfile(destination)
                 self.process_finish()
                 return
+            
+            if self.from_code in ['fa', 'ar', 'ur']:
+                self.extract = True
+                self.skip_rtl = False
+            
             if not destination:
                 self.update_notification(self.M51)
-                self.process_finish()                                             
+                self.process_finish()
                 return
-            self.update_notification( f" {self.M52} {destination}")
-            self.file_path=destination
+            
+            self.update_notification(f" {self.M52} {destination}")
+            self.file_path = destination
+
             self.process_xlsx2()
-            self.process_finish()   
-               
-            self.update_notification(self.M42)                                          
+            self.process_finish()
+            self.update_notification(self.M42)
             return
+
         except Exception as e:
-            self.process_finish()                                                               
+            self.process_finish()
             messagebox.showinfo("PDF Table extract", f"{self.M23}: {e}")
-            self.update_notification( f" {self.M53}: {e}")
+            self.update_notification(f" {self.M53}: {e}")
+
 
     def find_folders_2(self):
         base_path = r"C:\Program Files\gs\gs10.01.2"
@@ -2347,6 +2499,14 @@ class TranslationWindow:
                return
             if selected_book =='سه دقیقه در قیامت' :   
                file_path_2=os.path.join(self.dir, '3daghighe-dar-ghiamat.pdf')
+               os.startfile(file_path_2)
+               return
+            if selected_book =='تمنای وصال':   
+               file_path_2=os.path.join(self.dir, 'ts.pdf')
+               os.startfile(file_path_2)
+               return
+            if selected_book =='شعر تمنای وصال':   
+               file_path_2=os.path.join(self.dir, 'ts2.pdf')
                os.startfile(file_path_2)
                return
             else:
@@ -2959,9 +3119,10 @@ class TranslationWindow:
         with zipfile.ZipFile(download_path, 'r') as zip_ref:
              zip_ref.extractall(base_path)
     def get_available_package(self):
-        available_packages =Translator2.package.get_available_packages()
+        available_packages =pakage.package.get_available_packages()
         return next((pkg for pkg in available_packages if pkg.from_code == self.ls and pkg.to_code == self.t), None)            
     def download_lang_pack(self):       
+        print(self.download_url)
         parsed_url = urllib.urlparse(self.download_url)
         #self.pack_install=False
         if not all([parsed_url.scheme, parsed_url.netloc]):
@@ -3047,19 +3208,33 @@ class TranslationWindow:
                     matching_folders.append(folder_name)            
             return matching_folders
         except Exception as e:
-            self.update_notification(f"  find_matching_folders Error: {str(e)} and directory: {directory}")
-   
-
-   
+            self.update_notification(f"  find_matching_folders Error: {str(e)} and directory: {directory}")  
     def lang_code(self,event):
         try: 
             self.source = self.source_language_combo.get()
             self.target = self.target_language_combo.get() 
             if self.source == self.M104 :
                 self.detect_language()                
-                return
+                return            
             self.from_code = self.language_codes.get(self.source)
             self.to_code = self.language_codes.get(self.target)
+            t=self.source
+            t2=self.target
+            t3=self.translator_var.get()
+            try:
+                with open('them.json', 'r',encoding="utf-8") as f:
+                    lines = f.read().splitlines()
+                if len(lines) > 6:
+                    lines[2] = t  # replace the second line
+                    lines[3] = t2
+                    lines[8] = t3
+                with open('them.json', 'w', encoding="utf-8") as f:
+                    for line in lines:
+                        f.write(line + '\n')
+            except:
+                self.update_notification(self.M254)
+                with open('them.json', 'w',encoding="utf-8") as f:
+                    f.write(self.default)
             if self.from_code == self.to_code:
                 self.virastar=True
             else:
@@ -4833,6 +5008,3 @@ if __name__== "__main__":
     root.mainloop()
     "الحمد الله"
     "اللهم صل علي محمد و آل محمد و عجل فرجهم و اهلک والعن اعداهم"
-
-
-
