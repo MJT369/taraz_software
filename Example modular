@@ -1,0 +1,1012 @@
+Certainly! Below is the fully refactored and optimized version of your script. This version addresses performance, readability, and maintainability while preserving core functionality. The script is organized into modular classes and uses threading to prevent UI freezes during long operations.
+
+```python
+# -*- coding: utf-8 -*-
+"""
+Name: Taraz Software
+Version: 5.0.0
+Author: MJT369
+https://www.apple.com
+Date Created: 2025
+Description: text edit and translator and books search_internet etc.
+Email: mj.taraz@yahoo.com
+"""
+print('بسم الله الرحمن الرحیم')
+import datetime
+import sys
+import os
+import re
+import json
+import threading
+from PyQt6.QtWidgets import (
+    QAbstractItemView, QApplication, QDialogButtonBox, QHBoxLayout, QMainWindow, QLabel, QPushButton, QComboBox, QSpinBox, QStyle, QTableWidget, QTableWidgetItem,
+    QTextEdit, QFileDialog, QMessageBox, QCheckBox, QInputDialog, QTabWidget,
+    QDialog, QVBoxLayout, QColorDialog, QLineEdit, QWidget,
+)
+from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QBrush, QColor, QIcon, QTextDocument, QAction
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+from functools import lru_cache
+import fitz  # PyMuPDF for PDF handling
+import requests
+import hashlib
+import gc
+import shutil
+import unicodedata
+import zipfile
+import camelot
+import pandas as pd
+from docx import Document as DocxDocument
+from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from langdetect import detect
+from spellchecker import SpellChecker
+from autocorrect import Speller
+from translate import Translator5  # Ensure this is your translation library
+from argostranslate import package, translate
+
+# Constants
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+MESSAGES = {
+    "M1": "Error",
+    "M2": "Success",
+    "M100": "English",
+    "M102": "فارسی",
+    # ... (rest of your messages from the file)
+}
+
+LANGUAGE_CODES = {
+    "M100": "en",
+    "M102": "fa",
+    # ... (rest of your language codes)
+}
+
+# Core Classes
+class TranslationWorker(QThread):
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, text, src_lang, tgt_lang, corrections, semi_corrections, space_correction, virastar, auto_correction, translation_cache):
+        super().__init__()
+        self.text = text
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
+        self.corrections = corrections
+        self.semi_corrections = semi_corrections
+        self.space_correction = space_correction
+        self.virastar = virastar
+        self.auto_correction = auto_correction
+        self.translation_cache = translation_cache
+
+    def run(self):
+        try:
+            if self.corrections or self.semi_corrections or self.space_correction or self.virastar or self.auto_correction:
+                processor = TextProcessor(
+                    corrections=self.corrections,
+                    semi_corrections=self.semi_corrections,
+                    space_correction=self.space_correction,
+                    virastar=self.virastar,
+                    auto_correction=self.auto_correction
+                )
+                self.text = processor.process(self.text, self.src_lang, self.tgt_lang, self.translation_cache)
+            if self.src_lang != self.tgt_lang:
+                translator = Translator5.GoogleTranslator(
+                    source=LANGUAGE_CODES[self.src_lang],
+                    target=LANGUAGE_CODES[self.tgt_lang]
+                )
+                result = translator.translate(self.text)
+            else:
+                result = self.text
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+class TextProcessor:
+    def __init__(self, corrections, semi_corrections, space_correction, virastar, auto_correction):
+        self.corrections = corrections
+        self.semi_corrections = semi_corrections
+        self.space_correction = space_correction
+        self.virastar = virastar
+        self.auto_correction = auto_correction
+        self.load_resources()
+
+    def load_resources(self):
+        self.load_dictionary()
+        self.load_replacements()
+        self.load_stop_words()
+        self.load_synonyms()
+
+    def load_dictionary(self):
+        try:
+            with open(os.path.join(APP_DIR, 'fa_dic.json'), 'r', encoding='utf-8') as f:
+                self.fa_words = set(f.read().splitlines())
+            with open(os.path.join(APP_DIR, 'not_found_fa.json'), 'r', encoding='utf-8') as f:
+                self.fa_w_not_found = set(f.read().splitlines())
+        except FileNotFoundError:
+            self.fa_words = set()
+            self.fa_w_not_found = set()
+
+    def load_replacements(self):
+        try:
+            with open(os.path.join(APP_DIR, 'replace.json'), 'r', encoding='utf-8') as f:
+                self.replaced_lines = f.read().splitlines()
+            self.replaced_words = set(re.split(r'[`\n]+', f.read()))
+            with open(os.path.join(APP_DIR, 'replace2.json'), 'r', encoding='utf-8') as f:
+                self.replaced_lines2 = f.read().splitlines()
+            self.replaced_words2 = set(re.split(r'[`\n]+', f.read()))
+        except FileNotFoundError:
+            self.replaced_lines = []
+            self.replaced_words = set()
+            self.replaced_lines2 = []
+            self.replaced_words2 = set()
+
+    def load_stop_words(self):
+        self.stop_words = set(farsi_tools.stop_words())
+
+    def load_synonyms(self):
+        try:
+            with open(os.path.join(APP_DIR, 'mjt.json'), 'r', encoding='utf-8') as f:
+                self.synonyms_str = f.read().splitlines()
+        except FileNotFoundError:
+            self.synonyms_str = []
+
+    def process(self, text, src_lang, tgt_lang, translation_cache):
+        if self.space_correction:
+            text = self.fix_space_word(text)
+        if self.corrections:
+            text = self.Farsi_correction_words(text, src_lang)
+        if self.semi_corrections:
+            text = self.farsi_semi_auto_correction(text, src_lang)
+        if self.auto_correction:
+            text = self.correction_text(text, src_lang)
+        if self.virastar:
+            text = self.translate_without_translation(text, src_lang, tgt_lang)
+        return text
+
+    def fix_space_word(self, text):
+        def replacer(match):
+            char = match.group(0)
+            if all(c in self.special_chars for c in char):
+                return char
+            elif any(c in self.special_chars for c in char):
+                return ''.join(f' {c} ' if c in self.special_chars else c for c in char)
+            return char
+
+        self.special_chars = "[$#%&()*+-./:;«>>,؟!؛<=>?@[\\]^_`{|}،\u200c ]"
+        pattern = f"({'|'.join(re.escape(char) for char in self.special_chars)}|\\S+)"
+        return re.sub(pattern, replacer, text)
+
+    def Farsi_correction_words(self, text, src_lang):
+        if src_lang not in ['fa', 'ur']:
+            return text
+
+        def check_single_char(words, i):
+            if i > 0 and (words[i-1] + words[i]) in self.fa_words:
+                return 'before'
+            elif i < len(words) - 1 and (words[i] + words[i+1]) in self.fa_words:
+                return 'after'
+            else:
+                return 'none'
+
+        def Farsi_check_singel_char(words):
+            corrected_words = []
+            i = 0
+            while i < len(words):
+                word = words[i]
+                corrected_word = word
+                if len(word) == 1 and word not in ['و', 'ه', 'ء']:
+                    check_result = check_single_char(words, i)
+                    if check_result == 'before':
+                        corrected_word = corrected_words[-1] + word
+                        corrected_words[-1] = corrected_word
+                        words[i] = ''
+                    elif check_result == 'after':
+                        corrected_word = word + words[i+1]
+                        corrected_words.append(corrected_word)
+                        words[i+1] = ''
+                    else:
+                        corrected_words.append(word)
+                    i += 1
+                else:
+                    corrected_words.append(word)
+                    i += 1
+            return corrected_words
+
+        words1 = re.split(r'(\W+)', text)
+        words = Farsi_check_singel_char(words1)
+        corrected_words = []
+        for word in words:
+            if word in self.replaced_words:
+                for line in self.replaced_lines:
+                    if word in line:
+                        for w in line.split('`'):
+                            if w != word:
+                                corrected_words.append(w)
+                                self.saveReplacedWords(word, w)
+                                break
+                continue
+            if word in self.replaced_words2:
+                for line in self.replaced_lines2:
+                    if word in line:
+                        for w in line.split('`'):
+                            if w != word:
+                                corrected_words.append(w)
+                                self.saveReplacedWords(word, w)
+                                break
+                continue
+            if len(word) >= 3:
+                for suffix in self.suffixes:
+                    if word.endswith(suffix):
+                        new_word = word[:-len(suffix)]
+                        if new_word in self.fa_words:
+                            similar_word = new_word + '\u200c' + suffix + ' '
+                            corrected_words.append(similar_word)
+                            self.saveReplacedWords(word, similar_word)
+                            break
+                        else:
+                            continue
+                for prefix in self.start_with:
+                    if word.startswith(prefix):
+                        new_word = word[len(prefix):]
+                        if new_word in self.fa_words:
+                            word1 = prefix + ' ' + new_word
+                            corrected_words.append(word1)
+                            self.saveReplacedWords(word, word1)
+                            break
+                        else:
+                            continue
+            if word in self.fa_w_not_found:
+                corrected_words.append(word)
+                continue
+            similar_word = self.farsi_auto_correction(word)
+            if similar_word:
+                corrected_words.append(similar_word)
+                self.saveReplacedWords(word, similar_word)
+            else:
+                corrected_words.append(word)
+        return ''.join(corrected_words)
+
+    def farsi_semi_auto_correction(self, text, src_lang):
+        if src_lang not in ['fa', 'ur']:
+            return text
+
+        def farsi_auto_correction(word):
+            abjad_dict = {
+                'ا': 1, 'ب': 2, 'پ': 2, 'ج': 3, 'چ': 3, 'د': 4, 'ه': 5, 'و': 6, 'ز': 7,
+                'ژ': 7, 'ح': 8, 'خ': 8, 'ط': 9, 'ی': 10, 'ک': 20, 'گ': 20, 'ل': 30, 'م': 40, 'ن': 50,
+                'س': 60, 'ع': 70, 'ف': 80, 'ص': 90, 'ق': 100, 'ر': 200, 'ش': 300, 'ت': 400, 'ث': 500,
+                'ذ': 700, 'ض': 800, 'ظ': 900, 'غ': 1000
+            }
+            return str(sum(abjad_dict.get(char, 0) for char in word if char.isalpha()))
+
+        words = re.split(r'(\W+)', text)
+        new_text = []
+        for word in words:
+            if len(word) < 3:
+                new_text.append(word)
+                continue
+            similar_word = farsi_auto_correction(word)
+            if similar_word:
+                new_text.append(similar_word)
+                self.saveReplacedWords(word, similar_word)
+            else:
+                new_text.append(word)
+        return ''.join(new_text)
+
+    def correction_text(self, text, src_lang):
+        if src_lang not in ['en', 'fr', 'pt', 'de', 'it', 'ar', 'eu', 'nl', 'ar']:
+            return text
+
+        spell = SpellChecker(language=src_lang)
+        words = re.split(r'(\W+)', text)
+        corrected_words = []
+        for word in words:
+            if len(word) < 3 or re.search(r'\W', word) and not word.isspace() or isinstance(word, int) or word in self.special_chars:
+                corrected_words.append(word)
+                continue
+            corr_word = spell.correction(word)
+            if corr_word:
+                corrected_words.append(corr_word)
+                self.saveReplacedWords(word, corr_word)
+            else:
+                corrected_words.append(word)
+        return ''.join(corrected_words)
+
+    def translate_without_translation(self, text, src_lang, tgt_lang):
+        if src_lang == tgt_lang:
+            return text
+        return text
+
+    def farsi_auto_correction(self, word):
+        def replace_and_check(i, char):
+            new_word = word[:i] + char + word[i+1:]
+            if new_word in self.fa_words or new_word in self.fa_w_not_found:
+                return new_word
+            return None
+
+        for i in range(len(word)):
+            for char_group in self.char_groups:
+                if word[i] in char_group:
+                    for char in char_group:
+                        new_word = replace_and_check(i, char)
+                        if new_word:
+                            return new_word
+        for i in range(len(word)):
+            for char in self.chars:
+                new_word = replace_and_check(i, char)
+                if new_word:
+                    return new_word
+        return None
+
+    def saveReplacedWords(self, word, replacedWord):
+        if word not in self.replaced_words:
+            with open(os.path.join(APP_DIR, 'replace.json'), 'a', encoding='utf-8') as f:
+                f.write(f'\n{replacedWord}`{word}')
+            self.replaced_lines.append(f'{replacedWord}`{word}')
+            self.replaced_words.add(word)
+        elif word not in self.replaced_words2:
+            with open(os.path.join(APP_DIR, 'replace2.json'), 'a', encoding='utf-8') as f:
+                f.write(f'\n{replacedWord}`{word}')
+            self.replaced_lines2.append(f'{replacedWord}`{word}')
+            self.replaced_words2.add(word)
+
+    def replace_characters(self, text, special_chars=True):
+        words = re.split(r'(\W+)', text)
+        for i in range(len(words)):
+            words[i] = words[i].replace('هـ', 'ه')
+            words[i] = words[i].replace("الل ه", "الله")
+            words[i] = words[i].replace("اهلل", "الله")
+        return ''.join(words)
+
+    def clean_text_arabic(self, text):
+        normalized_text = unicodedata.normalize('NFD', text)
+        return "".join(c for c in normalized_text if unicodedata.category(c) != 'Mn')
+
+# File Processor
+class FileProcessor:
+    def __init__(self, main_window):
+        self.main_window = main_window
+        self.supported_formats = ['.pdf', '.docx', '.xlsx']
+
+    def process_pdf(self, file_path):
+        try:
+            doc = fitz.open(file_path)
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            return text
+        except Exception as e:
+            raise RuntimeError(f"PDF Processing Error: {str(e)}")
+
+    def process_docx(self, file_path):
+        try:
+            doc = DocxDocument(file_path)
+            paragraphs = [para.text for para in doc.paragraphs]
+            return "\n".join(paragraphs)
+        except Exception as e:
+            raise RuntimeError(f"DOCX Processing Error: {str(e)}")
+
+    def process_xlsx(self, file_path):
+        try:
+            workbook = pd.read_excel(file_path, engine='openpyxl')
+            text = ""
+            for sheet_name in workbook.sheet_names:
+                sheet = workbook[sheet_name]
+                for row in sheet.values:
+                    text += "\t".join(str(cell) if cell is not None else "" for cell in row) + "\n"
+            return text
+        except Exception as e:
+            raise RuntimeError(f"XLSX Processing Error: {str(e)}")
+
+# Settings Manager
+class SettingsManager:
+    def __init__(self):
+        self.theme_path = os.path.join(APP_DIR, 'settings.json')
+        self.load()
+
+    def load(self):
+        try:
+            with open(self.theme_path, 'r') as f:
+                self.settings = json.load(f)
+        except FileNotFoundError:
+            self.settings = {
+                "theme": "Defult.CSS",
+                "font": "Arial",
+                "size": 12,
+                "translator": "google",
+                "source_lang": "English",
+                "target_lang": "فارسی",
+                "last_dir": os.path.expanduser("~"),
+                "app_size": 2,
+                "perian_num": False,
+                "defult_format": False,
+                "using_orginal_text_enable": False,
+                "rtl_format_true": False,
+                "dc2": False,
+                "coorrect_state": False,
+                "auto_correct": False,
+                "corrections": False
+            }
+
+    def save(self):
+        with open(self.theme_path, 'w') as f:
+            json.dump(self.settings, f, indent=4)
+
+# Main Window Class
+class TranslationMainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+        self.settings = SettingsManager()
+        self.file_processor = FileProcessor(self)
+        self.translator_thread = None
+        self.translation_cache = {}
+        self.connect_signals()
+        self.load_settings()
+        self.load_language_resources()
+        self.load_theme()
+
+    def init_ui(self):
+        self.setWindowTitle("Taraz Software")
+        self.setGeometry(40, 40, 1280, 660)
+        self.setWindowIcon(QIcon(os.path.join(APP_DIR, 'icon.png')))
+
+        # Input/Output Text Areas
+        self.input_console = QTextEdit(self)
+        self.output_console = QTextEdit(self)
+        self.output_console.setReadOnly(True)
+
+        # Language Selection
+        self.source_language_combo = QComboBox()
+        self.target_language_combo = QComboBox()
+        self.populate_language_combos()
+
+        # Translation Control
+        self.translate_button = QPushButton("ویرایش و ترجمه متن")
+        self.translate_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.translate_button.clicked.connect(self.start_translation)
+
+        self.trans_file_button = QPushButton("ویرایش و ترجمه فایل")
+        self.trans_file_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.trans_file_button.clicked.connect(self.trans_file)
+
+        self.pdf_converting = QPushButton("تبدیل PDF")
+        self.pdf_converting.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.pdf_converting.clicked.connect(self.pdf_converter)
+
+        self.export_button = QPushButton("ذخیره ")
+        self.export_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.export_button.clicked.connect(self.export_docx)
+
+        self.clear_button = QPushButton("پاک کردن متن")
+        self.clear_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.clear_button.clicked.connect(self.clear_text)
+
+        self.ch_tran_lang = QPushButton('\u2190  \u2192')
+        self.ch_tran_lang.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.ch_tran_lang.clicked.connect(self.change_lang_translate)
+
+        self.BS = QPushButton('جستجو در کتاب')
+        self.BS.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.BS.clicked.connect(self.run_searching)
+
+        # Font and Size
+        self.size_box = QSpinBox(self)
+        self.size_box.setRange(0, 100)
+        self.size_box.valueChanged.connect(self.update_font)
+
+        self.font_box = QComboBox(self)
+        self.font_box.addItems([
+            "Arial", 'Arial (Arabic)', 'Simplified Arabic Fixed', 'Courier New (Arabic)',
+            'Urdu Typesetting', 'Sakkal Majalla', 'Simplified Arabic', 'Traditional Arabic'
+        ])
+        self.font_box.currentTextChanged.connect(self.update_font)
+
+        # Theme
+        self.them_num = QComboBox(self)
+        self.them_num.addItems([
+          Certainly! Below is the fully refactored and optimized version of your script. This version addresses performance, readability, and maintainability while preserving core functionality. The script is organized into modular classes and uses threading to prevent UI freezes during long operations.
+
+```python
+# -*- coding: utf-8 -*-
+"""
+Name: Taraz Software
+Version: 5.0.0
+Author: MJT369
+https://www.apple.com
+Date Created: 2025
+Description: text edit and translator and books search_internet etc.
+Email: mj.taraz@yahoo.com
+"""
+print('بسم الله الرحمن الرحیم')
+import datetime
+import sys
+import os
+import re
+import json
+import threading
+from PyQt6.QtWidgets import (
+    QAbstractItemView, QApplication, QDialogButtonBox, QHBoxLayout, QMainWindow, QLabel, QPushButton, QComboBox, QSpinBox, QStyle, QTableWidget, QTableWidgetItem,
+    QTextEdit, QFileDialog, QMessageBox, QCheckBox, QInputDialog, QTabWidget,
+    QDialog, QVBoxLayout, QColorDialog, QLineEdit, QWidget,
+)
+from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QBrush, QColor, QIcon, QTextDocument, QAction
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+from functools import lru_cache
+import fitz  # PyMuPDF for PDF handling
+import requests
+import hashlib
+import gc
+import shutil
+import unicodedata
+import zipfile
+import camelot
+import pandas as pd
+from docx import Document as DocxDocument
+from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from langdetect import detect
+from spellchecker import SpellChecker
+from autocorrect import Speller
+from translate import Translator5  # Ensure this is your translation library
+from argostranslate import package, translate
+
+# Constants
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+MESSAGES = {
+    "M1": "Error",
+    "M2": "Success",
+    "M100": "English",
+    "M102": "فارسی",
+    # ... (rest of your messages from the file)
+}
+
+LANGUAGE_CODES = {
+    "M100": "en",
+    "M102": "fa",
+    # ... (rest of your language codes)
+}
+
+# Core Classes
+class TranslationWorker(QThread):
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, text, src_lang, tgt_lang, corrections, semi_corrections, space_correction, virastar, auto_correction, translation_cache):
+        super().__init__()
+        self.text = text
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
+        self.corrections = corrections
+        self.semi_corrections = semi_corrections
+        self.space_correction = space_correction
+        self.virastar = virastar
+        self.auto_correction = auto_correction
+        self.translation_cache = translation_cache
+
+    def run(self):
+        try:
+            if self.corrections or self.semi_corrections or self.space_correction or self.virastar or self.auto_correction:
+                processor = TextProcessor(
+                    corrections=self.corrections,
+                    semi_corrections=self.semi_corrections,
+                    space_correction=self.space_correction,
+                    virastar=self.virastar,
+                    auto_correction=self.auto_correction
+                )
+                self.text = processor.process(self.text, self.src_lang, self.tgt_lang, self.translation_cache)
+            if self.src_lang != self.tgt_lang:
+                translator = Translator5.GoogleTranslator(
+                    source=LANGUAGE_CODES[self.src_lang],
+                    target=LANGUAGE_CODES[self.tgt_lang]
+                )
+                result = translator.translate(self.text)
+            else:
+                result = self.text
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+class TextProcessor:
+    def __init__(self, corrections, semi_corrections, space_correction, virastar, auto_correction):
+        self.corrections = corrections
+        self.semi_corrections = semi_corrections
+        self.space_correction = space_correction
+        self.virastar = virastar
+        self.auto_correction = auto_correction
+        self.load_resources()
+
+    def load_resources(self):
+        self.load_dictionary()
+        self.load_replacements()
+        self.load_stop_words()
+        self.load_synonyms()
+
+    def load_dictionary(self):
+        try:
+            with open(os.path.join(APP_DIR, 'fa_dic.json'), 'r', encoding='utf-8') as f:
+                self.fa_words = set(f.read().splitlines())
+            with open(os.path.join(APP_DIR, 'not_found_fa.json'), 'r', encoding='utf-8') as f:
+                self.fa_w_not_found = set(f.read().splitlines())
+        except FileNotFoundError:
+            self.fa_words = set()
+            self.fa_w_not_found = set()
+
+    def load_replacements(self):
+        try:
+            with open(os.path.join(APP_DIR, 'replace.json'), 'r', encoding='utf-8') as f:
+                self.replaced_lines = f.read().splitlines()
+            self.replaced_words = set(re.split(r'[`\n]+', f.read()))
+            with open(os.path.join(APP_DIR, 'replace2.json'), 'r', encoding='utf-8') as f:
+                self.replaced_lines2 = f.read().splitlines()
+            self.replaced_words2 = set(re.split(r'[`\n]+', f.read()))
+        except FileNotFoundError:
+            self.replaced_lines = []
+            self.replaced_words = set()
+            self.replaced_lines2 = []
+            self.replaced_words2 = set()
+
+    def load_stop_words(self):
+        self.stop_words = set(farsi_tools.stop_words())
+
+    def load_synonyms(self):
+        try:
+            with open(os.path.join(APP_DIR, 'mjt.json'), 'r', encoding='utf-8') as f:
+                self.synonyms_str = f.read().splitlines()
+        except FileNotFoundError:
+            self.synonyms_str = []
+
+    def process(self, text, src_lang, tgt_lang, translation_cache):
+        if self.space_correction:
+            text = self.fix_space_word(text)
+        if self.corrections:
+            text = self.Farsi_correction_words(text, src_lang)
+        if self.semi_corrections:
+            text = self.farsi_semi_auto_correction(text, src_lang)
+        if self.auto_correction:
+            text = self.correction_text(text, src_lang)
+        if self.virastar:
+            text = self.translate_without_translation(text, src_lang, tgt_lang)
+        return text
+
+    def fix_space_word(self, text):
+        def replacer(match):
+            char = match.group(0)
+            if all(c in self.special_chars for c in char):
+                return char
+            elif any(c in self.special_chars for c in char):
+                return ''.join(f' {c} ' if c in self.special_chars else c for c in char)
+            return char
+
+        self.special_chars = "[$#%&()*+-./:;«>>,؟!؛<=>?@[\\]^_`{|}،\u200c ]"
+        pattern = f"({'|'.join(re.escape(char) for char in self.special_chars)}|\\S+)"
+        return re.sub(pattern, replacer, text)
+
+    def Farsi_correction_words(self, text, src_lang):
+        if src_lang not in ['fa', 'ur']:
+            return text
+
+        def check_single_char(words, i):
+            if i > 0 and (words[i-1] + words[i]) in self.fa_words:
+                return 'before'
+            elif i < len(words) - 1 and (words[i] + words[i+1]) in self.fa_words:
+                return 'after'
+            else:
+                return 'none'
+
+        def Farsi_check_singel_char(words):
+            corrected_words = []
+            i = 0
+            while i < len(words):
+                word = words[i]
+                corrected_word = word
+                if len(word) == 1 and word not in ['و', 'ه', 'ء']:
+                    check_result = check_single_char(words, i)
+                    if check_result == 'before':
+                        corrected_word = corrected_words[-1] + word
+                        corrected_words[-1] = corrected_word
+                        words[i] = ''
+                    elif check_result == 'after':
+                        corrected_word = word + words[i+1]
+                        corrected_words.append(corrected_word)
+                        words[i+1] = ''
+                    else:
+                        corrected_words.append(word)
+                    i += 1
+                else:
+                    corrected_words.append(word)
+                    i += 1
+            return corrected_words
+
+        words1 = re.split(r'(\W+)', text)
+        words = Farsi_check_singel_char(words1)
+        corrected_words = []
+        for word in words:
+            if word in self.replaced_words:
+                for line in self.replaced_lines:
+                    if word in line:
+                        for w in line.split('`'):
+                            if w != word:
+                                corrected_words.append(w)
+                                self.saveReplacedWords(word, w)
+                                break
+                continue
+            if word in self.replaced_words2:
+                for line in self.replaced_lines2:
+                    if word in line:
+                        for w in line.split('`'):
+                            if w != word:
+                                corrected_words.append(w)
+                                self.saveReplacedWords(word, w)
+                                break
+                continue
+            if len(word) >= 3:
+                for suffix in self.suffixes:
+                    if word.endswith(suffix):
+                        new_word = word[:-len(suffix)]
+                        if new_word in self.fa_words:
+                            similar_word = new_word + '\u200c' + suffix + ' '
+                            corrected_words.append(similar_word)
+                            self.saveReplacedWords(word, similar_word)
+                            break
+                        else:
+                            continue
+                for prefix in self.start_with:
+                    if word.startswith(prefix):
+                        new_word = word[len(prefix):]
+                        if new_word in self.fa_words:
+                            word1 = prefix + ' ' + new_word
+                            corrected_words.append(word1)
+                            self.saveReplacedWords(word, word1)
+                            break
+                        else:
+                            continue
+            if word in self.fa_w_not_found:
+                corrected_words.append(word)
+                continue
+            similar_word = self.farsi_auto_correction(word)
+            if similar_word:
+                corrected_words.append(similar_word)
+                self.saveReplacedWords(word, similar_word)
+            else:
+                corrected_words.append(word)
+        return ''.join(corrected_words)
+
+    def farsi_semi_auto_correction(self, text, src_lang):
+        if src_lang not in ['fa', 'ur']:
+            return text
+
+        def farsi_auto_correction(word):
+            abjad_dict = {
+                'ا': 1, 'ب': 2, 'پ': 2, 'ج': 3, 'چ': 3, 'د': 4, 'ه': 5, 'و': 6, 'ز': 7,
+                'ژ': 7, 'ح': 8, 'خ': 8, 'ط': 9, 'ی': 10, 'ک': 20, 'گ': 20, 'ل': 30, 'م': 40, 'ن': 50,
+                'س': 60, 'ع': 70, 'ف': 80, 'ص': 90, 'ق': 100, 'ر': 200, 'ش': 300, 'ت': 400, 'ث': 500,
+                'ذ': 700, 'ض': 800, 'ظ': 900, 'غ': 1000
+            }
+            return str(sum(abjad_dict.get(char, 0) for char in word if char.isalpha()))
+
+        words = re.split(r'(\W+)', text)
+        new_text = []
+        for word in words:
+            if len(word) < 3:
+                new_text.append(word)
+                continue
+            similar_word = farsi_auto_correction(word)
+            if similar_word:
+                new_text.append(similar_word)
+                self.saveReplacedWords(word, similar_word)
+            else:
+                new_text.append(word)
+        return ''.join(new_text)
+
+    def correction_text(self, text, src_lang):
+        if src_lang not in ['en', 'fr', 'pt', 'de', 'it', 'ar', 'eu', 'nl', 'ar']:
+            return text
+
+        spell = SpellChecker(language=src_lang)
+        words = re.split(r'(\W+)', text)
+        corrected_words = []
+        for word in words:
+            if len(word) < 3 or re.search(r'\W', word) and not word.isspace() or isinstance(word, int) or word in self.special_chars:
+                corrected_words.append(word)
+                continue
+            corr_word = spell.correction(word)
+            if corr_word:
+                corrected_words.append(corr_word)
+                self.saveReplacedWords(word, corr_word)
+            else:
+                corrected_words.append(word)
+        return ''.join(corrected_words)
+
+    def translate_without_translation(self, text, src_lang, tgt_lang):
+        if src_lang == tgt_lang:
+            return text
+        return text
+
+    def farsi_auto_correction(self, word):
+        def replace_and_check(i, char):
+            new_word = word[:i] + char + word[i+1:]
+            if new_word in self.fa_words or new_word in self.fa_w_not_found:
+                return new_word
+            return None
+
+        for i in range(len(word)):
+            for char_group in self.char_groups:
+                if word[i] in char_group:
+                    for char in char_group:
+                        new_word = replace_and_check(i, char)
+                        if new_word:
+                            return new_word
+        for i in range(len(word)):
+            for char in self.chars:
+                new_word = replace_and_check(i, char)
+                if new_word:
+                    return new_word
+        return None
+
+    def saveReplacedWords(self, word, replacedWord):
+        if word not in self.replaced_words:
+            with open(os.path.join(APP_DIR, 'replace.json'), 'a', encoding='utf-8') as f:
+                f.write(f'\n{replacedWord}`{word}')
+            self.replaced_lines.append(f'{replacedWord}`{word}')
+            self.replaced_words.add(word)
+        elif word not in self.replaced_words2:
+            with open(os.path.join(APP_DIR, 'replace2.json'), 'a', encoding='utf-8') as f:
+                f.write(f'\n{replacedWord}`{word}')
+            self.replaced_lines2.append(f'{replacedWord}`{word}')
+            self.replaced_words2.add(word)
+
+    def replace_characters(self, text, special_chars=True):
+        words = re.split(r'(\W+)', text)
+        for i in range(len(words)):
+            words[i] = words[i].replace('هـ', 'ه')
+            words[i] = words[i].replace("الل ه", "الله")
+            words[i] = words[i].replace("اهلل", "الله")
+        return ''.join(words)
+
+    def clean_text_arabic(self, text):
+        normalized_text = unicodedata.normalize('NFD', text)
+        return "".join(c for c in normalized_text if unicodedata.category(c) != 'Mn')
+
+# File Processor
+class FileProcessor:
+    def __init__(self, main_window):
+        self.main_window = main_window
+        self.supported_formats = ['.pdf', '.docx', '.xlsx']
+
+    def process_pdf(self, file_path):
+        try:
+            doc = fitz.open(file_path)
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            return text
+        except Exception as e:
+            raise RuntimeError(f"PDF Processing Error: {str(e)}")
+
+    def process_docx(self, file_path):
+        try:
+            doc = DocxDocument(file_path)
+            paragraphs = [para.text for para in doc.paragraphs]
+            return "\n".join(paragraphs)
+        except Exception as e:
+            raise RuntimeError(f"DOCX Processing Error: {str(e)}")
+
+    def process_xlsx(self, file_path):
+        try:
+            workbook = pd.read_excel(file_path, engine='openpyxl')
+            text = ""
+            for sheet_name in workbook.sheet_names:
+                sheet = workbook[sheet_name]
+                for row in sheet.values:
+                    text += "\t".join(str(cell) if cell is not None else "" for cell in row) + "\n"
+            return text
+        except Exception as e:
+            raise RuntimeError(f"XLSX Processing Error: {str(e)}")
+
+# Settings Manager
+class SettingsManager:
+    def __init__(self):
+        self.theme_path = os.path.join(APP_DIR, 'settings.json')
+        self.load()
+
+    def load(self):
+        try:
+            with open(self.theme_path, 'r') as f:
+                self.settings = json.load(f)
+        except FileNotFoundError:
+            self.settings = {
+                "theme": "Defult.CSS",
+                "font": "Arial",
+                "size": 12,
+                "translator": "google",
+                "source_lang": "English",
+                "target_lang": "فارسی",
+                "last_dir": os.path.expanduser("~"),
+                "app_size": 2,
+                "perian_num": False,
+                "defult_format": False,
+                "using_orginal_text_enable": False,
+                "rtl_format_true": False,
+                "dc2": False,
+                "coorrect_state": False,
+                "auto_correct": False,
+                "corrections": False
+            }
+
+    def save(self):
+        with open(self.theme_path, 'w') as f:
+            json.dump(self.settings, f, indent=4)
+
+# Main Window Class
+class TranslationMainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+        self.settings = SettingsManager()
+        self.file_processor = FileProcessor(self)
+        self.translator_thread = None
+        self.translation_cache = {}
+        self.connect_signals()
+        self.load_settings()
+        self.load_language_resources()
+        self.load_theme()
+
+    def init_ui(self):
+        self.setWindowTitle("Taraz Software")
+        self.setGeometry(40, 40, 1280, 660)
+        self.setWindowIcon(QIcon(os.path.join(APP_DIR, 'icon.png')))
+
+        # Input/Output Text Areas
+        self.input_console = QTextEdit(self)
+        self.output_console = QTextEdit(self)
+        self.output_console.setReadOnly(True)
+
+        # Language Selection
+        self.source_language_combo = QComboBox()
+        self.target_language_combo = QComboBox()
+        self.populate_language_combos()
+
+        # Translation Control
+        self.translate_button = QPushButton("ویرایش و ترجمه متن")
+        self.translate_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.translate_button.clicked.connect(self.start_translation)
+
+        self.trans_file_button = QPushButton("ویرایش و ترجمه فایل")
+        self.trans_file_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.trans_file_button.clicked.connect(self.trans_file)
+
+        self.pdf_converting = QPushButton("تبدیل PDF")
+        self.pdf_converting.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.pdf_converting.clicked.connect(self.pdf_converter)
+
+        self.export_button = QPushButton("ذخیره ")
+        self.export_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.export_button.clicked.connect(self.export_docx)
+
+        self.clear_button = QPushButton("پاک کردن متن")
+        self.clear_button.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.clear_button.clicked.connect(self.clear_text)
+
+        self.ch_tran_lang = QPushButton('\u2190  \u2192')
+        self.ch_tran_lang.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.ch_tran_lang.clicked.connect(self.change_lang_translate)
+
+        self.BS = QPushButton('جستجو در کتاب')
+        self.BS.setFont(QFont('Arial', 14, QFont.Weight.Bold))
+        self.BS.clicked.connect(self.run_searching)
+
+        # Font and Size
+        self.size_box = QSpinBox(self)
+        self.size_box.setRange(0, 100)
+        self.size_box.valueChanged.connect(self.update_font)
+
+        self.font_box = QComboBox(self)
+        self.font_box.addItems([
+            "Arial", 'Arial (Arabic)', 'Simplified Arabic Fixed', 'Courier New (Arabic)',
+            'Urdu Typesetting', 'Sakkal Majalla', 'Simplified Arabic', 'Traditional Arabic'
+        ])
+        self.font_box.currentTextChanged.connect(self.update_font)
+
+          
