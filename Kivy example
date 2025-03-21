@@ -1,0 +1,454 @@
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.spinner import Spinner
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.popup import Popup
+from kivy.uix.filechooser import FileChooserListView
+from kivy.core.window import Window
+import threading
+import os
+import sys
+import time
+import pyperclip
+import requests
+import hashlib
+import gc
+import shutil
+import re
+import unicodedata
+from bidi.algorithm import get_display
+from difflib import SequenceMatcher
+from langdetect import detect
+from pdf2docx import Converter
+from docx import Document
+from spellchecker import SpellChecker
+from translatepy import Translator
+from googletrans import Translator as GoogleTranslator
+from deep_translator import GoogleTranslator as DeepTranslator
+from google_searching import ggl
+import wikipedia
+
+# Import other necessary modules here
+
+class TranslationWindow(BoxLayout):
+    def __init__(self, **kwargs):
+        super(TranslationWindow, self).__init__(orientation='vertical')
+        self.orientation = 'vertical'
+        self.spacing = 10
+        self.padding = 10
+        
+        self.nam = "Taraz Software 313                                                                                                                    بِسْمِ اللهِ الرَّحْمنِ الرَّحِیم"
+        self.myColor = '#dee9ef'
+        self.myColor2 = '#d3ecfa'
+        self.myColor3 = '#8de0d1'
+        self.myColor4 = '#d3ecfa'
+        self.myColor5 = '#a67b19'
+        self.myColor6 = '#a67b19'
+        self.default = """
+plastik
+فارسی
+فارسی
+False
+#141414
+14
+Arial
+مترجم دیپ
+spaceCorrect1"""
+        self.default2 = """
+plastik
+English
+English
+False
+#141414
+14
+Arial
+Google 1
+spaceCorrect1"""
+        
+        self.load_settings()
+        self.create_ui()
+
+    def load_settings(self):
+        try:
+            with open('them.json', 'r', encoding="utf-8") as f:
+                lines = f.read().splitlines()
+                self.them1 = lines[1]
+                self.lang_in1 = lines[2]
+                self.lang_out1 = lines[3]
+                self.corrections1 = lines[4]
+                self.color1 = lines[5]
+                self.size1 = lines[6]
+                self.font1 = lines[7]
+                self.translator1 = lines[8]
+                self.spaceCorrect1 = lines[9]
+        except FileNotFoundError:
+            with open('them.json', 'w', encoding="utf-8") as f:
+                f.write(self.default)
+            with open('them.json', 'r', encoding="utf-8") as f:
+                lines = f.read().splitlines()
+                self.them1 = lines[1]
+                self.lang_in1 = lines[2]
+                self.lang_out1 = lines[3]
+                self.corrections1 = lines[4]
+                self.color1 = lines[5]
+                self.size1 = lines[6]
+                self.font1 = lines[7]
+                self.translator1 = lines[8]
+                self.spaceCorrect1 = lines[9]
+
+    def create_ui(self):
+        # Create top bar
+        top_bar = BoxLayout(orientation='horizontal', spacing=10)
+        self.them_num = Spinner(text=self.them1, values=['plastik', 'adapta', 'breeze', 'smog'], size_hint=(None, None), size=(100, 40))
+        self.them_num.bind(text=self.change_theme)
+        top_bar.add_widget(self.them_num)
+
+        self.source_language_combo = Spinner(text=self.lang_in1, values=['فارسی', 'انگلیسی', 'عربی'], size_hint=(None, None), size=(100, 40))
+        top_bar.add_widget(self.source_language_combo)
+
+        self.target_language_combo = Spinner(text=self.lang_out1, values=['فارسی', 'انگلیسی', 'عربی'], size_hint=(None, None), size=(100, 40))
+        top_bar.add_widget(self.target_language_combo)
+
+        self.translator_menu = Spinner(text=self.translator1, values=['مترجم دیپ', 'Google 1', 'Google 2'], size_hint=(None, None), size=(100, 40))
+        top_bar.add_widget(self.translator_menu)
+
+        self.add_widget(top_bar)
+
+        # Create input and output consoles
+        input_output_layout = GridLayout(cols=2, spacing=10, padding=10)
+        self.input_console = TextInput(multiline=True, size_hint=(1, None), height=300)
+        input_output_layout.add_widget(self.input_console)
+
+        self.output_console = TextInput(multiline=True, size_hint=(1, None), height=300, readonly=True)
+        input_output_layout.add_widget(self.output_console)
+
+        self.add_widget(input_output_layout)
+
+        # Create buttons
+        button_layout = BoxLayout(orientation='horizontal', spacing=10, padding=10)
+        self.translate_button = Button(text="ترجمه متن", size_hint=(None, None), size=(150, 50))
+        self.translate_button.bind(on_press=self.translate)
+        button_layout.add_widget(self.translate_button)
+
+        self.file_button = Button(text="انتخاب فایل", size_hint=(None, None), size=(150, 50))
+        self.file_button.bind(on_press=self.select_file)
+        button_layout.add_widget(self.file_button)
+
+        self.export_button = Button(text="ذخیره", size_hint=(None, None), size=(150, 50))
+        self.export_button.bind(on_press=self.export_docx)
+        button_layout.add_widget(self.export_button)
+
+        self.clear_button = Button(text="پاک کردن", size_hint=(None, None), size=(150, 50))
+        self.clear_button.bind(on_press=self.clear)
+        button_layout.add_widget(self.clear_button)
+
+        self.add_widget(button_layout)
+
+    def change_theme(self, instance, value):
+        self.them1 = value
+        self.update_settings()
+
+    def update_settings(self):
+        try:
+            with open('them.json', 'w', encoding="utf-8") as f:
+                f.write(self.default if self.lang_in1 == 'فارسی' else self.default2)
+        except Exception as e:
+            print(f"Error updating settings: {e}")
+
+    def translate(self, instance):
+        if not self.thread_active:
+            self.thread_active = True
+            threading.Thread(target=self.translate_starter).start()
+        else:
+            self.update_notification("لطفا صبر کنید تا پردازش قبلی کامل شود")
+
+    def translate_starter(self):
+        try:
+            self.output_console.text = ""
+            input_text = self.input_console.text
+            text_parts = input_text.split('\n')
+            for part in text_parts:
+                if self.thread_active:
+                    translated_text = self.translate_text(part)
+                    self.output_console.text += translated_text + '\n'
+            self.thread_active = False
+        except Exception as e:
+            self.update_notification(f"خطا در ترجمه: {str(e)}")
+            self.thread_active = False
+
+    def translate_text(self, text):
+        self.text = text
+        if self.source_language_combo.text == 'شناسایی خودکار زبان':
+            self.detect_language()
+        try:
+            self.text = self.text_process()
+            if self.source_language_combo.text == self.target_language_combo.text:
+                self.update_notification("زبان مبدا و مقصد یکی است، عدم ترجمه")
+                return text
+            translators = {
+                'مترجم دیپ': self.deep,
+                'Google 1': self.google1,
+                'Google 2': self.google2,
+            }
+            selected_lang = self.source_language_combo.text
+            if self.source_language_combo.text == 'شناسایی خودکار زبان':
+                selected_lang = self.from_code
+            self.update_notification(f"در حال ترجمه {selected_lang} به {self.target_language_combo.text}...")
+            translator_name = self.translator_menu.text
+            translate_func = translators.get(translator_name)
+            if translate_func:
+                translated_text = translate_func()
+                return translated_text
+            return text
+        except Exception as e:
+            self.update_notification(f"خطا در پردازش متن: {str(e)}")
+            return text
+
+    def google1(self):
+        try:
+            translator = GoogleTranslator()
+            translated_group = translator.translate(self.text, src=self.from_code, dest=self.to_code).text
+            return translated_group
+        except Exception as e:
+            self.update_notification(f"خطا در مترجم گوگل 1: {str(e)}")
+            return self.text
+
+    def google2(self):
+        try:
+            translator = GoogleTranslator()
+            translated_group = translator.translate(self.text, src=self.from_code, dest=self.to_code).text
+            return translated_group
+        except Exception as e:
+            self.update_notification(f"خطا در مترجم گوگل 2: {str(e)}")
+            return self.text
+
+    def deep(self):
+        try:
+            translator = DeepTranslator(source=self.from_code, target=self.to_code)
+            translated_paragraph = translator.translate(self.text)
+            return translated_paragraph
+        except Exception as e:
+            self.update_notification(f"خطا در مترجم دیپ: {str(e)}")
+            return self.text
+
+    def detect_language(self):
+        try:
+            detected_language = detect(self.text)
+            self.from_code = detected_language
+            self.to_code = self.language_codes.get(self.target_language_combo.text)
+        except Exception as e:
+            self.update_notification(f"خطا در شناسایی زبان: {str(e)}")
+            self.from_code = 'en'
+
+    def text_process(self):
+        try:
+            if self.coorrect_aktive and self.correct.get() in ['اصلاح خودکار لغت', 'اصلاح نیمه خودکار کلمات غیر فارسی']:
+                if self.from_code in ['fa', 'ur']:
+                    self.text = self.replace_ascii_digits_with_farsi(self.text)
+                    self.text = self.correction_Farsi_text(self.text)
+                else:
+                    self.text = self.correction_english_text(self.text)
+            return self.text
+        except Exception as e:
+            self.update_notification(f"خطا در پردازش متن: {str(e)}")
+            return self.text
+
+    def correction_Farsi_text(self, text):
+        try:
+            if self.S6 == False:
+                self.open_4()
+            correct_text = self.Farsi_correction_words(text)
+            return correct_text
+        except Exception as e:
+            self.update_notification(f"خطا در اصلاح متن فارسی: {str(e)}")
+            return text
+
+    def Farsi_correction_words(self, text):
+        self.not_save_active = False
+        try:
+            if not self.correct.get() in ['اصلاح خودکار لغت', 'اصلاح نیمه خودکار کلمات غیر فارسی']:
+                return text
+            text = self.replace_characters(text, False)
+            words = self.Farsi_check_singel_char(text)
+            corrected_words = []
+            for word in words:
+                if self.coorrect_aktive == False:
+                    corrected_words.append(word)
+                    continue
+                if len(word) < 2 or any(re.search(pattern, word) for pattern in self.patterns):
+                    corrected_words.append(word)
+                    continue
+                if isinstance(word, int) or word == " " or not word or word in self.fa_words or word in self.fa_w_not_found:
+                    corrected_words.append(word)
+                    continue
+                if word in self.replaced_words:
+                    rep_line_ok = False
+                    for line in self.replaced_lines:
+                        if word in line.capitalize():
+                            rep_line = line.replace(word, '')
+                            rep_line_ok = True
+                            corrected_words.append(rep_line)
+                            break
+                    if rep_line_ok == True:
+                        continue
+                if self.correct.get() == 'اصلاح نیمه خودکار کلمات غیر فارسی':
+                    word = self.farsi_semi_auto_correction(word, text)
+                    corrected_words.append(word)
+                    continue
+                else:
+                    self.update_notification(f"اصلاح لغت: {word}")
+                    similar_word = self.farsi_auto_correction(word)
+                    if similar_word is not None:
+                        corrected_words.append(similar_word)
+                        if similar_word not in self.replaced_words and word != similar_word:
+                            self.info2(f"{word} جایگزین شد با {similar_word}")
+                            self.saveReplacedWords(word, similar_word)
+                        else:
+                            if not re.findall(r' ', similar_word) and similar_word not in self.fa_w_not_found:
+                                self.saveNewWord(similar_word)
+                        continue
+                    else:
+                        corrected_words.append(word)
+                        if word not in self.fa_w_not_found:
+                            self.saveNewWord(word)
+                        continue
+            return ' '.join(corrected_words)
+        except Exception as e:
+            self.update_notification(f"خطا در اصلاح متن فارسی: {str(e)}")
+            return text
+
+    def farsi_auto_correction(self, word):
+        if self.S6 == False:
+            self.open_4()
+        if len(word) < 3:
+            reverse_word = word[::-1]
+            if reverse_word in self.words2 or reverse_word in self.fa_w_not_found or reverse_word in self.fa_words:
+                return reverse_word
+        try:
+            similar_word = self.find_similar_word(word)
+            if similar_word is not None:
+                return similar_word
+            similar_word = self.find_base_word(word)
+            if similar_word is not None:
+                return similar_word
+            for i in range(len(word)):
+                for char_group in self.char_groups:
+                    if word[i] in char_group:
+                        for char in char_group:
+                            new_word = word[:i] + char + word[i + 1:]
+                            if new_word in self.words2 or new_word in self.fa_w_not_found or new_word in self.fa_words:
+                                return new_word
+            for i in range(len(word)):
+                for char in self.chars:
+                    new_word = self.replace_and_check(i, char, word)
+                    if new_word is not None:
+                        return new_word
+            return None
+        except Exception as e:
+            self.update_notification(f"خطا در اصلاح متن فارسی: {str(e)}")
+            return None
+
+    def replace_ascii_digits_with_farsi(self, text):
+        words = text.split()
+        for i in range(len(words)):
+            words[i] = words[i].replace('0', '۰')
+            words[i] = words[i].replace('1', '۱')
+            words[i] = words[i].replace('2', '۲')
+            words[i] = words[i].replace('3', '۳')
+            words[i] = words[i].replace('4', '۴')
+            words[i] = words[i].replace('5', '۵')
+            words[i] = words[i].replace('6', '۶')
+            words[i] = words[i].replace('7', '۷')
+            words[i] = words[i].replace('8', '۸')
+            words[i] = words[i].replace('9', '۹')
+        return ' '.join(words)
+
+    def Farsi_check_singel_char(self, text):
+        words = text.split()
+        corrected_words = []
+        i = 0
+        while i < len(words):
+            word = words[i]
+            corrected_word = word  # Initialize corrected_word with the original word
+            if len(word) == 1 and word not in ['و']:
+                check_result = self.check_single_char(words, i)
+                if check_result == 'before':
+                    corrected_word = corrected_words[-1] + word  # Join with the word before
+                    corrected_words[-1] = corrected_word  # Update the last word in corrected_words
+                    words[i] = ''
+                elif check_result == 'after':
+                    corrected_word = word + words[i + 1]  # Join with the word after
+                    corrected_words.append(corrected_word)  # Add the corrected word to corrected_words
+                    words[i + 1] = ''
+                else:
+                    corrected_words.append(word)  # Do not join
+                i += 1
+            else:
+                corrected_words.append(word)
+                i += 1
+        return corrected_words
+
+    def check_single_char(self, words, i):
+        try:
+            if i > 0 and (words[i - 1] + words[i]) in self.fa_words:
+                return 'before'
+            elif i < len(words) - 1 and (words[i] + words[i + 1]) in self.fa_words:
+                return 'after'
+            else:
+                return 'none'
+        except Exception as e:
+            self.update_notification(f"خطا در بررسی حروف تکی: {str(e)}")
+            return 'none'
+
+    def replace_and_check(self, i, char, word):
+        new_word = word[:i] + char + word[i + 1:]
+        if new_word in self.words2 or new_word in self.fa_w_not_found or new_word in self.fa_words:
+            return new_word
+        return None
+
+    def find_similar_word(self, word):
+        self.save_word = False
+        try:
+            for x in self.fa_w_not_found:
+                ratio = SequenceMatcher(None, word, x).ratio()
+                if ratio > 0.95:
+                    return x
+            similar_words = SequenceMatcher.get_close_matches(word, self.fa_words, n=24, cutoff=0.8)
+            similar_words_same_length = [w for w in similar_words if len(w) == len(word)]
+            if similar_words_same_length:
+                return similar_words_same_length[0]
+            if len(word) > 4:
+                similar_words_same_length = [w for w in similar_words if (len(word) - 1 >= len(w) and len(word) + 3 <= len(w)) or (len(word) + 1 <= len(w) and len(word) - 2 >= len(w))]
+                if similar_words_same_length:
+                    return similar_words_same_length[0]
+            if 7 > len(word) > 4:
+                for suffix in self.suffixes:
+                    if word.endswith(suffix):
+                        new_word = word[:-len(suffix)]
+                        if new_word in self.fa_w_not_found or new_word in self.fa_words:
+                            if new_word in self.words2 and len(suffix) > 2:
+                                return new_word + ' ' + suffix + ' '
+                            self.save_word = True
+                            return word
+                for suffix in self.start_with:
+                    if word.startswith(suffix):
+                        new_word = word[:-len(suffix)]
+                        if new_word in self.fa_w_not_found or new_word in self.fa_words:
+                            self.save_word = True
+                            return word
+            return None
+        except Exception as e:
+            self.update_notification(f"خطا در یافتن کلمه مشابه: {str(e)}")
+            return None
+
+    def find_base_word(self, word):
+        try:
+            self.save_word = False
+            if len(word) > 5:
+                new_word = word[:-2]
+           
